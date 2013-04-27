@@ -9,7 +9,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "3.06b"
+#define  Version         "3.10b"
 
 
 byte onchar[8] = { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
@@ -41,7 +41,7 @@ Olympus Camera(IRLed);
 
 
 //                     0123456789012345
-char* MenuItems[9] = { "",
+char* MenuItems[10] = { "",
                         "-> Light Trigger",    // 1
                         "-> Ext. Trigger ",    // 2
                         "-> Time Lapse   ",    // 3
@@ -49,6 +49,7 @@ char* MenuItems[9] = { "",
                         "-> Set Date/Time",    // 5
                         "-> Sound/Backlit",    // 6
                         "-> Set Delays   ",    // 7
+                        "-> Infrared     ",    // 8
                         "-> Information  ",    // 8
                     };
 int MenuSelection = 1;
@@ -62,13 +63,12 @@ int LightThreshold = 0, Light = 0;
 boolean NotArmed = true;
 boolean WhenHigh = true;
 boolean Armed = false;
-boolean BackLight;
-boolean MakeSounds;
-int PreDelay, PostDelay;
+boolean BackLight, MakeSounds, Infrared;
+int PreDelay, ShutterDelay, AfterDelay;
 long tmpDelay=60;
 long StartMillis, tmpMillis;
 
-#define    Debug    false
+#define    Debug    true
 
 
 void setup()
@@ -103,7 +103,12 @@ void setup()
   else
     BackLight=false;
   PreDelay=ReadFromMem(4);
-  PostDelay=ReadFromMem(6);
+  ShutterDelay=ReadFromMem(6);
+  AfterDelay=ReadFromMem(8);
+  if (ReadFromMem(10)==1)
+    Infrared=true;
+  else
+    Infrared=false;
   if (BackLight)
     lcd.backlight();
   else
@@ -143,6 +148,8 @@ void loop()
         lcd.write(2);
         while (Keypress() != BACKKEY)
         {
+          if ((Light>LightThreshold) && (Armed))
+            Trigger();
           if (Keypress()==ENTERKEY)
           {
             Armed = !(Armed);
@@ -160,10 +167,6 @@ void loop()
           if (Debug)  Serial.print("Light Reading: ");
           if (Debug)  Serial.println(analogRead(LightSensor));
           Light = map(analogRead(LightSensor),0,1023,0,100);
-          if ((Light>LightThreshold) && Armed)
-          {
-            Trigger();
-          }
           lcd.setCursor(7,0);
           PrintDigits(Light,3);
           lcd.setCursor(11,1);
@@ -377,7 +380,14 @@ void loop()
         ResetTimeVars();
         break;
       case 8:
-        if (Debug)  Serial.println("Case 8: Information");
+        if (Debug)  Serial.println("Case 8: Infrared");
+        SetupInfrared();
+        lcd.clear();
+        lcd.print(" Camera Trigger ");
+        ResetTimeVars();       
+        break;
+      case 9:
+        if (Debug)  Serial.println("Case 9: Information");
         lcd.clear();
         lcd.print("Version: ");
         lcd.print(Version);
@@ -416,14 +426,14 @@ void MainMenu()
     if (Keypress() == RIGHTKEY)
     {
       MenuSelection+=1;
-      if (MenuSelection>8)
+      if (MenuSelection>9)
         MenuSelection=1;
     }
     if (Keypress() == LEFTKEY)
     {
       MenuSelection-=1;
       if (MenuSelection<1)
-        MenuSelection=8;
+        MenuSelection=9;
     }
     if (Keypress() == ENTERKEY)
     {
@@ -466,6 +476,11 @@ void MainMenu()
           break;
         case 8:
           Mode=8;
+          NotArmed=false;
+          StayInside=false;
+          break;
+        case 9:
+          Mode=9;
           NotArmed=false;
           StayInside=false;
           break;
@@ -785,6 +800,55 @@ void SetupTime()
   NotArmed=true;
 }
 
+void SetupInfrared()
+{
+  lcd.clear();
+  //         0123456789012345
+  lcd.print("Setup Infrared  ");
+  lcd.setCursor(0,1);
+  lcd.print("Enabled:     ");
+  boolean StayInside=true;
+  boolean tmpInfrared=Infrared;
+  while (StayInside)
+  {
+    if ((Keypress()==LEFTKEY) || (Keypress()==RIGHTKEY))
+      tmpInfrared=!(tmpInfrared);
+    lcd.setCursor(9,1);
+    if (tmpInfrared)
+      lcd.print("ON ");
+    else
+      lcd.print("OFF");
+    if (Keypress()==ENTERKEY)
+    {
+      Infrared=tmpInfrared;
+      lcd.setCursor(0,1);
+      //         0123456789012345
+      lcd.print("Settings Saved! ");
+      if (MakeSounds)
+        Beep(1);
+      if (Infrared)
+        WriteToMem(10,1);
+      else
+        WriteToMem(10,0);
+      StayInside=false;
+      delay(1000);
+    }
+    if (Keypress()==BACKKEY)
+    {
+      lcd.setCursor(0,1);
+      //         0123456789012345
+      lcd.print("Not Saved!      ");
+      StayInside=false;
+      if (MakeSounds)
+        Beep(2);
+      delay(1000);
+    }
+  }
+  Mode=1;
+  NotArmed=true;
+}
+
+
 void SetupInterface()
 {
   lcd.clear();
@@ -898,31 +962,60 @@ void SetupDelays()
     }
     if (Keypress()==BACKKEY)
       StayInside=false;
-  }
+  } 
   StayInside=true;
   lcd.setCursor(0,1);
   //         0123456789012345
   lcd.print("Shutter:        ");
-  int tmpPostDelay=PostDelay;
+  int tmpShutterDelay=ShutterDelay;
   while (StayInside)
   {
     if (Keypress()==LEFTKEY)
     {
-      tmpPostDelay-=1;
-      if (tmpPostDelay<0)
-        tmpPostDelay=3000;
+      tmpShutterDelay-=1;
+      if (tmpShutterDelay<0)
+        tmpShutterDelay=3000;
     }
     if (Keypress()==RIGHTKEY)
     {
-      tmpPostDelay+=1;
-      if (tmpPostDelay>3000)
-        tmpPostDelay=0;
+      tmpShutterDelay+=1;
+      if (tmpShutterDelay>3000)
+        tmpShutterDelay=0;
     }
     lcd.setCursor(9,1);
-    PrintDigits(tmpPostDelay,4);
+    PrintDigits(tmpShutterDelay,4);
     if (Keypress()==ENTERKEY)
     {
-      PreDelay=tmpPreDelay;
+      ShutterDelay=tmpShutterDelay;
+      StayInside=false;
+    }
+    if (Keypress()==BACKKEY)
+      StayInside=false;    
+  }
+  StayInside=true;
+  lcd.setCursor(0,1);
+  //         0123456789012345
+  lcd.print("After Shot:     ");
+  int tmpAfterDelay=AfterDelay;
+  while (StayInside)
+  {
+    if (Keypress()==LEFTKEY)
+    {
+      tmpAfterDelay-=1;
+      if (tmpAfterDelay<0)
+        tmpAfterDelay=3000;
+    }
+    if (Keypress()==RIGHTKEY)
+    {
+      tmpAfterDelay+=1;
+      if (tmpAfterDelay>3000)
+        tmpAfterDelay=0;
+    }
+    lcd.setCursor(12,1);
+    PrintDigits(tmpAfterDelay,4);
+    if (Keypress()==ENTERKEY)
+    {
+      AfterDelay=tmpAfterDelay;
       StayInside=false;
       lcd.setCursor(0,1);
       lcd.print("Delays Saved!   ");
@@ -930,7 +1023,8 @@ void SetupDelays()
       if (MakeSounds)
         Beep(1);
       WriteToMem(4,PreDelay);
-      WriteToMem(6,PostDelay);
+      WriteToMem(6,ShutterDelay);
+      WriteToMem(8,AfterDelay);
       delay(1000);
     }
     if (Keypress()==BACKKEY)
@@ -943,27 +1037,9 @@ void SetupDelays()
       StayInside=false;    
       delay(1000);
     }
-  }  
+  }
   Mode=1;
   NotArmed=true;
-}
-
-
-void Trigger()
-{
-  if (Debug)  Serial.println("Triggered!");
-  if (PreDelay!=0)
-    delay(PreDelay);
-  pinMode(Optocoupler1, HIGH);
-  pinMode(Optocoupler2, HIGH);
-  Camera.shutterNow();
-  if (MakeSounds)
-    Beep(1);
-  delay(PostDelay);
-  pinMode(Optocoupler1, LOW);
-  pinMode(Optocoupler2, LOW);
-  if (MakeSounds)
-    Beep(2);
 }
 
 
@@ -983,4 +1059,24 @@ int ReadFromMem(byte address)
   int b=EEPROM.read(address+1);
 
   return a*256+b;
+}
+
+
+void Trigger()
+{
+  if (PreDelay!=0)
+    delay(PreDelay);
+  digitalWrite(Optocoupler1, HIGH);
+  digitalWrite(Optocoupler2, HIGH);
+  if (Infrared)
+    Camera.shutterNow();
+  if (MakeSounds)
+    Beep(1);
+  delay(ShutterDelay);
+  digitalWrite(Optocoupler1, LOW);
+  digitalWrite(Optocoupler2, LOW);
+  delay(AfterDelay);
+  if (Debug)  Serial.println("Triggered!");
+  if (MakeSounds)
+    Beep(2);
 }
