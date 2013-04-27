@@ -9,7 +9,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "3.05b"
+#define  Version         "3.06b"
 
 
 byte onchar[8] = { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
@@ -25,8 +25,8 @@ byte offchar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
 #define  IRLed          10      // For IR transmitting
 #define  LightSensor    A1      // Built-in Light trigger
 
-#define  Input1Pin      A0      // For future use
-#define  ExternalPin     2      // For connecting external sensors
+#define  Input1Pin      A0      // For future use / analog senors?
+#define  ExternalPin     8      // For connecting external (digital) sensors
 #define  BuzzerPin       9      // Buzzer
 
 #define  RightButton     4      // Button Right Pin
@@ -68,12 +68,12 @@ int PreDelay, PostDelay;
 long tmpDelay=60;
 long StartMillis, tmpMillis;
 
-
+#define    Debug    false
 
 
 void setup()
 {
-  Serial.begin(9600);
+  if (Debug)  Serial.begin(9600);
   lcd.init();
   lcd.createChar(1, onchar);
   lcd.createChar(2, offchar);
@@ -91,6 +91,7 @@ void setup()
   pinMode(LeftButton, INPUT_PULLUP);
   pinMode(EnterButton, INPUT_PULLUP);
   pinMode(BuzzerPin, OUTPUT);
+  pinMode(ExternalPin, INPUT);
   pinMode(Optocoupler1, OUTPUT);
   pinMode(Optocoupler2, OUTPUT);
   if (ReadFromMem(0)==1)
@@ -117,7 +118,7 @@ void loop()
   {
     if (Keypress()==ENTERKEY)
     {
-      Serial.println("MAIN MENU");
+      if (Debug)  Serial.println("MAIN MENU");
       MainMenu();
     }
     DisplayTime();  
@@ -127,15 +128,15 @@ void loop()
     switch (Mode)
     {
       case 1:
-        Serial.println("Case 1: Light Trigger");
+        if (Debug)  Serial.println("Case 1: Light Trigger");
         lcd.clear();
         //         0123456789012345
         lcd.print("Light:          ");
         lcd.setCursor(0,1);
         lcd.print("Threshold:      ");
         Light = map(analogRead(LightSensor),0,1023,0,100);
-        Serial.print("Light Reading: ");
-        Serial.println(analogRead(LightSensor));
+        if (Debug)  Serial.print("Light Reading: ");
+        if (Debug)  Serial.println(analogRead(LightSensor));
         LightThreshold = Light+10;
         Armed=false;
         lcd.setCursor(15,0);
@@ -156,8 +157,8 @@ void loop()
               lcd.write(2);
             }
           }
-          Serial.print("Light Reading: ");
-          Serial.println(analogRead(LightSensor));
+          if (Debug)  Serial.print("Light Reading: ");
+          if (Debug)  Serial.println(analogRead(LightSensor));
           Light = map(analogRead(LightSensor),0,1023,0,100);
           if ((Light>LightThreshold) && Armed)
           {
@@ -186,7 +187,7 @@ void loop()
         ResetTimeVars();
         break;
       case 2:
-        Serial.println("Case 2: External Trigger");
+        if (Debug)  Serial.println("Case 2: External Trigger");
         lcd.clear();
         //         0123456789012345
         lcd.print("Ext. Trigger    ");
@@ -232,7 +233,7 @@ void loop()
         ResetTimeVars();
         break;
       case 3:
-        Serial.println("Case 3: Time Lapse");
+        if (Debug)  Serial.println("Case 3: Time Lapse");
         lcd.clear();
         lcd.print("TimeLapse [   ] ");
         lcd.setCursor(0,1);
@@ -297,7 +298,7 @@ void loop()
         ResetTimeVars();
         break;
       case 4:
-        Serial.println("Case 4: Burst Mode");
+        if (Debug)  Serial.println("Case 4: Burst Mode");
         lcd.clear();
         lcd.print("Burst Mode      ");
         lcd.setCursor(0,1);
@@ -354,7 +355,7 @@ void loop()
         ResetTimeVars();
         break;
       case 5:
-        Serial.println("Case 5: Setup Time");
+        if (Debug)  Serial.println("Case 5: Setup Time");
         SetupTime();
         NotArmed=true;
         lcd.clear();
@@ -362,21 +363,21 @@ void loop()
         ResetTimeVars();
         break;
       case 6:
-        Serial.println("Case 6: Setup Interface");
+        if (Debug)  Serial.println("Case 6: Setup Interface");
         SetupInterface();
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
       case 7:
-        Serial.println("Case 7: Setup Delays");
+        if (Debug)  Serial.println("Case 7: Setup Delays");
         SetupDelays();
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
       case 8:
-        Serial.println("Case 8: Information");
+        if (Debug)  Serial.println("Case 8: Information");
         lcd.clear();
         lcd.print("Version: ");
         lcd.print(Version);
@@ -490,25 +491,25 @@ int Keypress()
 {
   if (digitalRead(LeftButton)==LOW)
   {
-    Serial.println("LEFT");
+    if (Debug)  Serial.println("LEFT");
     delay(50);
     return LEFTKEY;
   }
   if (digitalRead(RightButton)==LOW)
   {
-    Serial.println("RIGHT");
+    if (Debug)  Serial.println("RIGHT");
     delay(50);
     return RIGHTKEY;
   }
   if (digitalRead(EnterButton)==LOW)
   {
-    Serial.println("ENTER");
+    if (Debug)  Serial.println("ENTER");
     delay(50);
     return ENTERKEY;
   }
   if (digitalRead(BackButton)==LOW)
   {
-    Serial.println("BACK");
+    if (Debug)  Serial.println("BACK");
     delay(50);
     return BACKKEY;
   }
@@ -950,7 +951,7 @@ void SetupDelays()
 
 void Trigger()
 {
-  Serial.println("Triggered!");
+  if (Debug)  Serial.println("Triggered!");
   if (PreDelay!=0)
     delay(PreDelay);
   pinMode(Optocoupler1, HIGH);
