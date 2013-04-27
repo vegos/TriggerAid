@@ -9,7 +9,11 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "3.03b"
+#define  Version         "3.04b"
+
+
+byte onchar[8] = { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
+byte offchar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B00000 };
 
 #define  LEFTKEY         1
 #define  RIGHTKEY        2
@@ -37,16 +41,15 @@ Olympus Camera(IRLed);
 
 
 //                     0123456789012345
-char* MenuItems[10] = { "",
-                        "-> Standby      ",    // 1
-                        "-> Light Trigger",    // 2
-                        "-> Ext. Trigger ",    // 3
-                        "-> Time Lapse   ",    // 4
-                        "-> Time Trigger ",    // 5
-                        "-> Set Date/Time",    // 6
-                        "-> Sound/Backlit",    // 7
-                        "-> Set Delays   ",    // 8
-                        "-> Information  ",    // 9
+char* MenuItems[9] = { "",
+                        "-> Light Trigger",    // 1
+                        "-> Ext. Trigger ",    // 2
+                        "-> Time Lapse   ",    // 3
+                        "-> Burst Mode   ",    // 4
+                        "-> Set Date/Time",    // 5
+                        "-> Sound/Backlit",    // 6
+                        "-> Set Delays   ",    // 7
+                        "-> Information  ",    // 8
                     };
 int MenuSelection = 1;
 
@@ -57,13 +60,13 @@ int Mode = 1;
 int LightThreshold = 0, Light = 0;
 
 boolean NotArmed = true;
-boolean AtMenu = false;
 boolean WhenHigh = true;
+boolean Armed = false;
 boolean BackLight;
-boolean Keybeep;
+boolean MakeSounds;
 int PreDelay, PostDelay;
-int tmpDelay=60;
-long StartMillis;
+long tmpDelay=60;
+long StartMillis, tmpMillis;
 
 
 
@@ -71,6 +74,8 @@ long StartMillis;
 void setup()
 {
   Serial.begin(9600);
+  lcd.createChar(1, onchar);
+  lcd.createChar(2, offchar);
   lcd.init();
   lcd.backlight();
   setSyncProvider(RTC.get);
@@ -88,10 +93,10 @@ void setup()
   pinMode(BuzzerPin, OUTPUT);
   pinMode(Optocoupler1, OUTPUT);
   pinMode(Optocoupler2, OUTPUT);
-  if (ReadFromMem(0)==0)
-    Keybeep=true;
+  if (ReadFromMem(0)==1)
+    MakeSounds=true;
   else
-    Keybeep=false;
+    MakeSounds=false;
   if (ReadFromMem(2)==1)
     BackLight=true;
   else
@@ -121,7 +126,8 @@ void loop()
   {
     switch (Mode)
     {
-      case 2:
+      case 1:
+        Serial.println("Case 1: Light Trigger");
         lcd.clear();
         //         0123456789012345
         lcd.print("Light:          ");
@@ -131,14 +137,29 @@ void loop()
         Serial.print("Light Reading: ");
         Serial.println(analogRead(LightSensor));
         LightThreshold = Light+10;
+        Armed=false;
         while (Keypress() != BACKKEY)
         {
+          if (Keypress()==ENTERKEY)
+          {
+            Armed = !(Armed);
+            if (Armed)
+            {
+              lcd.setCursor(15,0);
+              lcd.write(1);
+            }
+            else
+            {
+              lcd.setCursor(15,0);
+              lcd.write(2);
+            }
+          }
           Serial.print("Light Reading: ");
           Serial.println(analogRead(LightSensor));
           Light = map(analogRead(LightSensor),0,1023,0,100);
-          if (Light>LightThreshold)
+          if ((Light>LightThreshold) && Armed)
           {
-            Beep(3);
+            Trigger();
           }
           lcd.setCursor(7,0);
           PrintDigits(Light,4);
@@ -162,18 +183,37 @@ void loop()
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 3:
+      case 2:
+        Serial.println("Case 2: External Trigger");
         lcd.clear();
         //         0123456789012345
         lcd.print("External Trigger");
         lcd.setCursor(0,1);
         lcd.print("Trigger on      ");
+        Armed=false;
         while (Keypress()!=BACKKEY)
         {
-          if ((WhenHigh) && (digitalRead(ExternalPin)==HIGH))
-            Trigger();
-          if ((!WhenHigh) && (digitalRead(ExternalPin)==LOW))
-            Trigger();
+          if (Keypress()==ENTERKEY)
+          {
+            Armed = !(Armed);
+            if (Armed)
+            {
+              lcd.setCursor(15,0);
+              lcd.write(1);
+            }
+            else
+            {
+              lcd.setCursor(15,0);
+              lcd.write(2);
+            }
+          }
+          if (Armed)
+          {
+            if ((WhenHigh) && (digitalRead(ExternalPin)==HIGH))
+              Trigger();
+            if ((!WhenHigh) && (digitalRead(ExternalPin)==LOW))
+              Trigger();              
+          }          
           lcd.setCursor(11,1);
           if ((Keypress()==LEFTKEY) || (Keypress()==RIGHTKEY))
             WhenHigh=!(WhenHigh);
@@ -187,7 +227,8 @@ void loop()
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 4:
+      case 3:
+        Serial.println("Case 3: Time Lapse");
         lcd.clear();
         lcd.print("Time Lapse [   ]");
         lcd.setCursor(0,1);
@@ -197,18 +238,36 @@ void loop()
         StartMillis=millis();
         while (Keypress()!=BACKKEY)
         {
-          lcd.setCursor(12,0);
-          PrintDigits(((tmpDelay*1000+StartMillis)-millis()),3);
-          if (millis()-StartMillis>(tmpDelay*1000))
+          if (Keypress()==ENTERKEY)
           {
-            Trigger();
-            StartMillis=millis();
+            Armed = !(Armed);
+            if (Armed)
+            {
+              lcd.setCursor(15,0);
+              lcd.write(1);
+            }
+            else
+            {
+              lcd.setCursor(15,0);
+              lcd.write(2);
+            }
+          }
+          if (Armed)
+          {
+            lcd.setCursor(12,0);
+            long remaining = (tmpDelay-((millis()-StartMillis)/1000));
+            PrintDigits(remaining,3);
+            if ((millis()-StartMillis)>(tmpDelay*1000))
+            {
+              Trigger();
+              StartMillis=millis();
+            }
           }
           if (Keypress()==LEFTKEY)
           {
             tmpDelay-=1;
-            if (tmpDelay<0)
-              tmpDelay=0;
+            if (tmpDelay<1)
+              tmpDelay=1;
           }
           if (Keypress()==RIGHTKEY)
           {
@@ -224,29 +283,83 @@ void loop()
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 5:
-        // Specify time and interval to shoot
+      case 4:
+        Serial.println("Case 4: Burst Mode");
+        lcd.clear();
+        lcd.print("Butst Mode      ");
+        lcd.setCursor(0,1);
+        //         0123456789012345
+        lcd.print("Millisecs: 0000 ");
+        tmpMillis=500;   
+        StartMillis=millis();
+        while (Keypress()!=BACKKEY)
+        {
+          if (Keypress()==ENTERKEY)
+          {
+            Armed = !(Armed);
+            if (Armed)
+            {
+              lcd.setCursor(15,0);
+              lcd.write(1);
+            }
+            else
+            {
+              lcd.setCursor(15,0);
+              lcd.write(2);
+            }
+          }
+          if (Armed)
+          {
+             if (millis()-StartMillis>tmpMillis)
+             {
+                Trigger();
+                StartMillis=millis();
+             }
+          }
+          if (Keypress()==LEFTKEY)
+          {
+            tmpMillis-=1;
+            if (tmpMillis<0)
+              tmpMillis=0;
+          }
+          if (Keypress()==RIGHTKEY)
+          {
+            tmpMillis+=1;
+            if (tmpMillis>1000)
+              tmpMillis=1000;
+          }
+          lcd.setCursor(11,1);
+          PrintDigits(tmpMillis,4);
+        }
+        NotArmed=true;
+        lcd.clear();
+        lcd.print(" Camera Trigger ");
+        ResetTimeVars();
         break;
-      case 6:
+      case 5:
+        Serial.println("Case 5: Setup Time");
         SetupTime();
         NotArmed=true;
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 7:
+      case 6:
+        Serial.println("Case 6: Setup Interface");
         SetupInterface();
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 8:
+      case 7:
+        Serial.println("Case 7: Setup Delays");
         SetupDelays();
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 9:
+      case 8:
+        Serial.println("Case 8: Information");
         lcd.clear();
         lcd.print("Version: ");
         lcd.print(Version);
@@ -299,14 +412,14 @@ void MainMenu()
       switch (MenuSelection)
       {
         case 1:
-          NotArmed=true;
-          StayInside=false;
-          Mode=1;         
-          break;
-        case 2:
           NotArmed=false;
           StayInside=false;
+          Mode=1;
+          break;
+        case 2:
           Mode=2;
+          NotArmed=false;
+          StayInside=false;
           break;
         case 3:
           Mode=3;
@@ -332,13 +445,9 @@ void MainMenu()
           Mode=7;
           NotArmed=false;
           StayInside=false;
+          break;
         case 8:
           Mode=8;
-          NotArmed=false;
-          StayInside=false;
-          break;
-        case 9:
-          Mode=9;
           NotArmed=false;
           StayInside=false;
           break;
@@ -365,37 +474,25 @@ int Keypress()
   if (digitalRead(LeftButton)==LOW)
   {
     Serial.println("LEFT");
-    if (Keybeep)
-      KeyBeepFunc();
-    else
-      delay(50);
+    delay(50);
     return LEFTKEY;
   }
   if (digitalRead(RightButton)==LOW)
   {
     Serial.println("RIGHT");
-    if (Keybeep)
-      KeyBeepFunc();
-    else
-      delay(50);
+    delay(50);
     return RIGHTKEY;
   }
   if (digitalRead(EnterButton)==LOW)
   {
     Serial.println("ENTER");
-    if (Keybeep)
-      KeyBeepFunc();
-    else
-      delay(50);
+    delay(50);
     return ENTERKEY;
   }
   if (digitalRead(BackButton)==LOW)
   {
     Serial.println("BACK");
-    if (Keybeep)
-      KeyBeepFunc();
-    else
-      delay(50);
+    delay(50);
     return BACKKEY;
   }
   return NONEKEY;
@@ -426,38 +523,46 @@ void Beep(int x)
   }
 }
 
-void KeyBeepFunc()
-{
-  digitalWrite(BuzzerPin, HIGH);
-  delay(50);
-  digitalWrite(BuzzerPin, LOW);
-  delay(50);
-}
 
 void DisplayTime()
 {
-  lcd.setCursor(8,1);
+  lcd.setCursor(0,1);
+  lcd.print(" ");
   if (hour()!=CurrentHour)
   {
     PrintDigits(hour(),2);
     CurrentHour=hour();
   }
-  lcd.setCursor(10,1);
+  lcd.setCursor(3,1);
   lcd.print(":");
   if (minute()!=CurrentMin)
   {
     PrintDigits(minute(),2);
     CurrentMin=minute();
   }
-  lcd.setCursor(13,1);
+  lcd.setCursor(6,1);
   lcd.print(":");
   if (second()!=CurrentSec)
   {
     PrintDigits(second(),2);
     CurrentSec=second();
   }
-  lcd.setCursor(0,1);
-  lcd.print("Standby ");
+  lcd.setCursor(9,1);
+  lcd.print(" ");
+  if (day()!=CurrentDay)
+  {
+    PrintDigits(day(),2);
+    CurrentDay=day();
+  }
+  lcd.setCursor(12,1);
+  lcd.print("/");
+  if (month()!=CurrentMonth)
+  {
+    PrintDigits(month(),2);
+    CurrentMonth=month();
+  }
+  lcd.setCursor(15,1);
+  lcd.print(" ");
 }
 
 void ResetTimeVars()
@@ -644,7 +749,8 @@ void SetupTime()
       StayInside=false;
       //         0123456789012345
       lcd.print("Datetime saved!");
-      Beep(1);
+      if (MakeSounds)
+        Beep(1);
     }
     if (Keypress()==BACKKEY)
     {
@@ -652,7 +758,8 @@ void SetupTime()
       setSyncProvider(RTC.get);
       StayInside=false;
       lcd.print("Not saved!");
-      Beep(2);
+      if (MakeSounds)
+        Beep(2);
     }
   }
   delay(2000);
@@ -666,21 +773,21 @@ void SetupInterface()
   //         0123456789012345
   lcd.print("Setup Interface ");
   lcd.setCursor(0,1);
-  lcd.print("Key Beep:    ");
+  lcd.print("Buzzer:      ");
   boolean StayInside=true;
-  boolean KeybeepTemp=Keybeep;
+  boolean MakeSoundsTemp=MakeSounds;
   while (StayInside)
   {
     if ((Keypress()==LEFTKEY) || (Keypress()==RIGHTKEY))
-      KeybeepTemp=!(KeybeepTemp);
-    lcd.setCursor(10,1);
-    if (KeybeepTemp)
+      MakeSoundsTemp=!(MakeSoundsTemp);
+    lcd.setCursor(8,1);
+    if (MakeSoundsTemp)
       lcd.print("ON ");
     else
       lcd.print("OFF");
     if (Keypress()==ENTERKEY)
     {
-      Keybeep=KeybeepTemp;
+      MakeSounds=MakeSoundsTemp;
       StayInside=false;
     }
     if (Keypress()==BACKKEY)
@@ -707,8 +814,9 @@ void SetupInterface()
       lcd.print("Settings Saved! ");
       BackLight=BacklightTemp;
       StayInside=false;
-      Beep(1);
-      if (Keybeep)
+      if (MakeSounds)
+        Beep(1);
+      if (MakeSounds)
         WriteToMem(0,1);
       else
         WriteToMem(0,0);
@@ -723,7 +831,8 @@ void SetupInterface()
       lcd.setCursor(0,1);
       //         0123456789012345
       lcd.print("Not saved!      ");
-      Beep(2);
+      if (MakeSounds)
+        Beep(2);
       StayInside=false;    
       delay(1000);
     }
@@ -791,9 +900,11 @@ void SetupDelays()
     {
       PreDelay=tmpPreDelay;
       StayInside=false;
+      lcd.setCursor(0,1);
       lcd.print("Delays Saved!   ");
       StayInside=false;
-      Beep(1);
+      if (MakeSounds)
+        Beep(1);
       WriteToMem(4,PreDelay);
       WriteToMem(6,PostDelay);
       delay(1000);
@@ -803,7 +914,8 @@ void SetupDelays()
       lcd.setCursor(0,1);
       //         0123456789012345
       lcd.print("Not saved!      ");
-      Beep(2);
+      if (MakeSounds)
+        Beep(2);
       StayInside=false;    
       delay(1000);
     }
@@ -815,16 +927,20 @@ void SetupDelays()
 
 void Trigger()
 {
+  Serial.println("Triggered!");
   if (PreDelay!=0)
     delay(PreDelay);
   pinMode(Optocoupler1, HIGH);
   pinMode(Optocoupler2, HIGH);
+  delay(5000);
   Camera.shutterNow();
-  Beep(1);
+  if (MakeSounds)
+    Beep(1);
   delay(PostDelay);
   pinMode(Optocoupler1, LOW);
   pinMode(Optocoupler2, LOW);
-  Beep(2);
+  if (MakeSounds)
+    Beep(2);
 }
 
 
