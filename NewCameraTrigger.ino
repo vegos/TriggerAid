@@ -4,10 +4,12 @@
 #include <Time.h>
 #include <MemoryFree.h>
 #include <EEPROM.h>
+#include <multiCameraIrControl.h>
+
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "3.02a"
+#define  Version         "3.03b"
 
 #define  LEFTKEY         1
 #define  RIGHTKEY        2
@@ -31,17 +33,20 @@ LiquidCrystal_I2C lcd(0x20,16,2);
 #define  Optocoupler1   11
 #define  Optocoupler2   12
 
+Olympus Camera(IRLed);
+
 
 //                     0123456789012345
-char* MenuItems[9] = { "",
-                       "-> Standby      ",    // 1
-                       "-> Light Trigger",    // 2
-                       "-> Time Lapse   ",    // 3
-                       "-> Ext. Trigger ",    // 4
-                       "-> Set Date/Time",    // 5
-                       "-> Sound/Backlit",    // 6
-                       "-> Set Delays   ",    // 7
-                       "-> Information  ",    // 8
+char* MenuItems[10] = { "",
+                        "-> Standby      ",    // 1
+                        "-> Light Trigger",    // 2
+                        "-> Ext. Trigger ",    // 3
+                        "-> Time Lapse   ",    // 4
+                        "-> Time Trigger ",    // 5
+                        "-> Set Date/Time",    // 6
+                        "-> Sound/Backlit",    // 7
+                        "-> Set Delays   ",    // 8
+                        "-> Information  ",    // 9
                     };
 int MenuSelection = 1;
 
@@ -159,6 +164,31 @@ void loop()
         break;
       case 3:
         lcd.clear();
+        //         0123456789012345
+        lcd.print("External Trigger");
+        lcd.setCursor(0,1);
+        lcd.print("Trigger on      ");
+        while (Keypress()!=BACKKEY)
+        {
+          if ((WhenHigh) && (digitalRead(ExternalPin)==HIGH))
+            Trigger();
+          if ((!WhenHigh) && (digitalRead(ExternalPin)==LOW))
+            Trigger();
+          lcd.setCursor(11,1);
+          if ((Keypress()==LEFTKEY) || (Keypress()==RIGHTKEY))
+            WhenHigh=!(WhenHigh);
+          if (WhenHigh)
+            lcd.print("HIGH");
+          else
+            lcd.print("LOW ");
+        }
+        NotArmed=true;
+        lcd.clear();
+        lcd.print(" Camera Trigger ");
+        ResetTimeVars();
+        break;
+      case 4:
+        lcd.clear();
         lcd.print("Time Lapse [   ]");
         lcd.setCursor(0,1);
         //         0123456789012345
@@ -194,51 +224,29 @@ void loop()
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 4:
-        lcd.clear();
-        //         0123456789012345
-        lcd.print("External Trigger");
-        lcd.setCursor(0,1);
-        lcd.print("Trigger on      ");
-        while (Keypress()!=BACKKEY)
-        {
-          if ((WhenHigh) && (digitalRead(ExternalPin)==HIGH))
-            Trigger();
-          if ((!WhenHigh) && (digitalRead(ExternalPin)==LOW))
-            Trigger();
-          lcd.setCursor(11,1);
-          if ((Keypress()==LEFTKEY) || (Keypress()==RIGHTKEY))
-            WhenHigh=!(WhenHigh);
-          if (WhenHigh)
-            lcd.print("HIGH");
-          else
-            lcd.print("LOW ");
-        }
-        NotArmed=true;
-        lcd.clear();
-        lcd.print(" Camera Trigger ");
-        ResetTimeVars();
-        break;
       case 5:
+        // Specify time and interval to shoot
+        break;
+      case 6:
         SetupTime();
         NotArmed=true;
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 6:
+      case 7:
         SetupInterface();
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 7:
+      case 8:
         SetupDelays();
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 8:
+      case 9:
         lcd.clear();
         lcd.print("Version: ");
         lcd.print(Version);
@@ -325,7 +333,12 @@ void MainMenu()
           NotArmed=false;
           StayInside=false;
         case 8:
-          Mode=7;
+          Mode=8;
+          NotArmed=false;
+          StayInside=false;
+          break;
+        case 9:
+          Mode=9;
           NotArmed=false;
           StayInside=false;
           break;
@@ -806,6 +819,7 @@ void Trigger()
     delay(PreDelay);
   pinMode(Optocoupler1, HIGH);
   pinMode(Optocoupler2, HIGH);
+  Camera.shutterNow();
   Beep(1);
   delay(PostDelay);
   pinMode(Optocoupler1, LOW);
