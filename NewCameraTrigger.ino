@@ -9,7 +9,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "3.11b"
+#define  Version         "3.20b"
 
 
 byte onchar[8] = { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
@@ -45,7 +45,7 @@ char* MenuItems[10] = { "",
                         "-> Light Trigger",    // 1
                         "-> Ext. Trigger ",    // 2
                         "-> Time Lapse   ",    // 3
-                        "-> Burst Mode   ",    // 4
+                        "-> Bulb Mode    ",    // 4
                         "-> Set Date/Time",    // 5
                         "-> Sound/Backlit",    // 6
                         "-> Set Delays   ",    // 7
@@ -308,13 +308,13 @@ void loop()
         ResetTimeVars();
         break;
       case 4:
-        if (Debug)  Serial.println("Case 4: Burst Mode");
+        if (Debug)  Serial.println("Case 4: Bulb Mode");
         lcd.clear();
-        lcd.print("Burst Mode      ");
+        lcd.print("Bulb Mode [   ] ");
         lcd.setCursor(0,1);
         //         0123456789012345
-        lcd.print("Millisecs: 0000 ");
-        tmpMillis=500;   
+        lcd.print("Bulb: 030 secs  ");
+        tmpDelay=30;
         StartMillis=millis();
         lcd.setCursor(15,0);
         lcd.write(2);
@@ -329,6 +329,7 @@ void loop()
               lcd.setCursor(15,0);
               lcd.write(1);
               StartMillis=millis();
+              StartBulb();
             }
             else
             {
@@ -338,26 +339,36 @@ void loop()
           }
           if (Armed)
           {
-             if (millis()-StartMillis>tmpMillis)
-             {
-                Trigger();
-                StartMillis=millis();
-             }
+            lcd.setCursor(11,0);
+            long remaining = (tmpDelay-((millis()-StartMillis)/1000));
+            PrintDigits(remaining,3);
+            if ((millis()-StartMillis)>(tmpDelay*1000))
+            {
+              StopBulb();
+              Armed=false;
+              lcd.setCursor(15,0);
+              lcd.write(2);
+            }
+          }
+          else
+          {
+            lcd.setCursor(11,0);
+            lcd.print("   ");
           }
           if (Keypress()==LEFTKEY)
           {
-            tmpMillis-=1;
-            if (tmpMillis<0)
-              tmpMillis=0;
+            tmpDelay-=1;
+            if (tmpDelay<1)
+              tmpDelay=1;
           }
           if (Keypress()==RIGHTKEY)
           {
-            tmpMillis+=1;
-            if (tmpMillis>1000)
-              tmpMillis=1000;
+            tmpDelay+=1;
+            if (tmpDelay>360)
+              tmpDelay=360;
           }
-          lcd.setCursor(11,1);
-          PrintDigits(tmpMillis,4);
+          lcd.setCursor(7,1);
+          PrintDigits(tmpDelay,3);
         }
         NotArmed=true;
         lcd.clear();
@@ -1125,4 +1136,20 @@ void Trigger()
   if (Debug)  Serial.println("Triggered!");
   if (MakeSounds)
     Beep(2);
+}
+
+
+void StartBulb()
+{
+  digitalWrite(Optocoupler1, HIGH);
+  digitalWrite(Optocoupler2, HIGH);
+  if (MakeSounds)
+    Beep(1);
+}
+
+void StopBulb()
+{
+  digitalWrite(Optocoupler1, LOW);
+  digitalWrite(Optocoupler2, LOW);
+  delay(AfterDelay);
 }
