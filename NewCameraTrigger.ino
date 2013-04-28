@@ -9,7 +9,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "3.10b"
+#define  Version         "3.11b"
 
 
 byte onchar[8] = { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
@@ -49,7 +49,7 @@ char* MenuItems[10] = { "",
                         "-> Set Date/Time",    // 5
                         "-> Sound/Backlit",    // 6
                         "-> Set Delays   ",    // 7
-                        "-> Infrared     ",    // 8
+                        "-> Infrared/Wire",    // 8
                         "-> Information  ",    // 8
                     };
 int MenuSelection = 1;
@@ -63,7 +63,7 @@ int LightThreshold = 0, Light = 0;
 boolean NotArmed = true;
 boolean WhenHigh = true;
 boolean Armed = false;
-boolean BackLight, MakeSounds, Infrared;
+boolean BackLight, MakeSounds, Infrared, Wired;
 int PreDelay, ShutterDelay, AfterDelay;
 long tmpDelay=60;
 long StartMillis, tmpMillis;
@@ -86,6 +86,7 @@ void setup()
   lcd.setCursor(0,1);
   lcd.print("Antonis Maglaras");
   delay(1000);
+  // Setup pins
   pinMode(RightButton, INPUT_PULLUP);  
   pinMode(BackButton, INPUT_PULLUP);
   pinMode(LeftButton, INPUT_PULLUP);
@@ -94,6 +95,7 @@ void setup()
   pinMode(ExternalPin, INPUT);
   pinMode(Optocoupler1, OUTPUT);
   pinMode(Optocoupler2, OUTPUT);
+  // Read settings from EEPROM
   if (ReadFromMem(0)==1)
     MakeSounds=true;
   else
@@ -109,6 +111,11 @@ void setup()
     Infrared=true;
   else
     Infrared=false;
+  if (ReadFromMem(12)==1)
+    Wired=true;
+  else
+    Wired=false;
+  //
   if (BackLight)
     lcd.backlight();
   else
@@ -437,6 +444,10 @@ void MainMenu()
     }
     if (Keypress() == ENTERKEY)
     {
+      NotArmed=false;
+      StayInside=false;
+      Mode=MenuSelection;
+/*
       switch (MenuSelection)
       {
         case 1:
@@ -485,6 +496,7 @@ void MainMenu()
           StayInside=false;
           break;
       }
+*/      
     }
     if (Keypress() == BACKKEY)
     {
@@ -804,10 +816,34 @@ void SetupInfrared()
 {
   lcd.clear();
   //         0123456789012345
-  lcd.print("Setup Infrared  ");
+  lcd.print("Wired Trigger   ");
   lcd.setCursor(0,1);
   lcd.print("Enabled:     ");
   boolean StayInside=true;
+  boolean tmpWired=Wired;
+  while (StayInside)
+  {
+    if ((Keypress()==LEFTKEY) || (Keypress()==RIGHTKEY))
+      tmpWired=!(tmpWired);
+    lcd.setCursor(9,1);
+    if (tmpWired)
+      lcd.print("ON ");
+    else
+      lcd.print("OFF");
+    if (Keypress()==ENTERKEY)
+    {
+      Wired=tmpWired;
+      StayInside=false;
+    }
+    if (Keypress()==BACKKEY)
+      StayInside=false;
+  }
+  lcd.clear();
+  //         0123456789012345
+  lcd.print("Infrared Trigger");
+  lcd.setCursor(0,1);
+  lcd.print("Enabled:     ");
+  StayInside=true;
   boolean tmpInfrared=Infrared;
   while (StayInside)
   {
@@ -830,6 +866,10 @@ void SetupInfrared()
         WriteToMem(10,1);
       else
         WriteToMem(10,0);
+      if (Wired)
+        WriteToMem(12,1);
+      else
+        WriteToMem(12,0);
       StayInside=false;
       delay(1000);
     }
@@ -1066,15 +1106,21 @@ void Trigger()
 {
   if (PreDelay!=0)
     delay(PreDelay);
-  digitalWrite(Optocoupler1, HIGH);
-  digitalWrite(Optocoupler2, HIGH);
+  if (Wired)
+  {
+    digitalWrite(Optocoupler1, HIGH);
+    digitalWrite(Optocoupler2, HIGH);
+  }
   if (Infrared)
     Camera.shutterNow();
   if (MakeSounds)
     Beep(1);
-  delay(ShutterDelay);
-  digitalWrite(Optocoupler1, LOW);
-  digitalWrite(Optocoupler2, LOW);
+  if (Wired)
+  {
+    delay(ShutterDelay);  
+    digitalWrite(Optocoupler1, LOW);
+    digitalWrite(Optocoupler2, LOW);
+  }
   delay(AfterDelay);
   if (Debug)  Serial.println("Triggered!");
   if (MakeSounds)
