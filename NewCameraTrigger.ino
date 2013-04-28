@@ -1,7 +1,9 @@
 // --- (New) CAMERA TRIGGER --------------------------------------------------------------------------------------------------------------------------
-//     ©2013, Antonis Maglaras
+//     (c)2013, Antonis Maglaras
 //     maglaras at gmail dot com
+//     http://www.slr.gr 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 #include <Wire.h>                         // Arduino included Library
 #include <LiquidCrystal_I2C.h>
@@ -11,10 +13,9 @@
 #include <EEPROM.h>                       // Arduino included Library
 #include <multiCameraIrControl.h>
 
-
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "3.21b"          // Current Version
+#define  Version         "0.5.1b"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -58,7 +59,7 @@ char* MenuItems[10] = { "",
                         "-> Set Date/Time",    // 5
                         "-> Sound/Backlit",    // 6
                         "-> Set Delays   ",    // 7
-                        "-> Infrared/Wire",    // 8
+                        "-> PreFocus/IR  ",    // 8
                         "-> Information  ",    // 8
                     };
                     
@@ -71,10 +72,10 @@ int LightThreshold = 0, Light = 0;
 boolean NotArmed = true;
 boolean WhenHigh = true;
 boolean Armed = false;
-boolean BackLight, MakeSounds, Infrared, Wired;
+boolean BackLight, MakeSounds, Infrared, PreFocus;
 int PreDelay, ShutterDelay, AfterDelay;
 long tmpDelay=60;
-long StartMillis, tmpMillis;
+long StartMillis, tmpMillis, TriggerMillis;
 
 // Debug mode. When true, it outputs information data to serial port
 #define    Debug    true
@@ -86,7 +87,11 @@ long StartMillis, tmpMillis;
 
 void setup()
 {
-  if (Debug)  Serial.begin(9600);
+  if (Debug) 
+  { 
+    Serial.begin(9600);
+    Serial.println("Camera Trigger -- Debug information");
+  }
   lcd.init();
   lcd.createChar(1, onchar);
   lcd.createChar(2, offchar);
@@ -128,9 +133,9 @@ void setup()
   else
     Infrared=false;
   if (ReadFromMem(12)==1)
-    Wired=true;
+    PreFocus=true;
   else
-    Wired=false;
+    PreFocus=false;
   //
   if (BackLight)
     lcd.backlight();
@@ -148,6 +153,26 @@ void loop()
 {
   if (NotArmed)
   {
+    if (Keypress()==RIGHTKEY)
+    {
+      BackLight=!(BackLight);
+      if (BackLight)
+        lcd.backlight();
+      else 
+        lcd.noBacklight();
+    }
+    if (Keypress()==LEFTKEY)
+    {
+      lcd.setCursor(0,1);
+      //         0123456789012345
+      lcd.print("Bulb Shooting...");
+      StartBulb();
+      while (Keypress()==LEFTKEY);
+      StopBulb();
+      lcd.setCursor(0,1);
+      lcd.print("                ");
+      ResetTimeVars();
+    }
     if (Keypress()==ENTERKEY)
     {
       if (Debug)  Serial.println("MAIN MENU");
@@ -175,20 +200,52 @@ void loop()
         lcd.write(2);
         while (Keypress() != BACKKEY)
         {
-          if ((Light>LightThreshold) && (Armed))
-            Trigger();
           if (Keypress()==ENTERKEY)
           {
             Armed = !(Armed);
             if (Armed)
             {
+              lcd.clear();
+              //         0123456789012345
+              lcd.print("Light Trigger   ");
+              lcd.setCursor(0,1);
+              lcd.print("Ready!          ");
               lcd.setCursor(15,0);
               lcd.write(1);
+              if (PreFocus)
+                PreFocusStart();
+              while (!Backkey())
+              {
+                Light = map(analogRead(LightSensor),0,1023,0,100);
+                if ((Light>LightThreshold) && (Armed))
+                {
+                  TriggerMillis=millis();
+                  Trigger();
+                  if (PreFocus)
+                    PreFocusStart();
+                }
+              }
+              if (PreFocus)
+                PreFocusStop();
+              Armed=false;
+              lcd.clear();
+              //         0123456789012345
+              lcd.print("Light:          ");
+              lcd.setCursor(0,1);
+              lcd.print("Threshold:      ");
+              lcd.setCursor(15,0);
+              lcd.write(2);              
+              delay(100);
             }
             else
             {
+              lcd.clear();
+              //         0123456789012345
+              lcd.print("Light:          ");
+              lcd.setCursor(0,1);
+              lcd.print("Threshold:      ");
               lcd.setCursor(15,0);
-              lcd.write(2);
+              lcd.write(2);               
             }
           }
           if (Debug)  Serial.print("Light Reading: ");
@@ -233,22 +290,47 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
+              lcd.setCursor(0,1);
+              //         0123456789012345
+              lcd.print("Ready!          ");
               lcd.setCursor(15,0);
               lcd.write(1);
+              if (PreFocus)
+                PreFocusStart();
+              while (!Backkey())
+              {
+                if ((WhenHigh) && (digitalRead(ExternalPin)==HIGH))
+                {
+                  TriggerMillis=millis();
+                  Trigger();
+                  if (PreFocus)
+                    PreFocusStart();
+                }
+                if ((!WhenHigh) && (digitalRead(ExternalPin)==LOW))
+                {
+                  TriggerMillis=millis();
+                  Trigger();
+                  if (PreFocus)
+                    PreFocusStart();
+                }
+              }
+              if (PreFocus)
+                PreFocusStop();
+              lcd.setCursor(0,1);
+              lcd.print("Trigger on      ");
+              Armed=false;
+              lcd.setCursor(15,0);
+              lcd.write(2); 
+              delay(100);             
             }
             else
             {
+              lcd.setCursor(0,1);
+              lcd.print("Trigger on      ");
               lcd.setCursor(15,0);
               lcd.write(2);
             }
           }
-          if (Armed)
-          {
-            if ((WhenHigh) && (digitalRead(ExternalPin)==HIGH))
-              Trigger();
-            if ((!WhenHigh) && (digitalRead(ExternalPin)==LOW))
-              Trigger();              
-          }          
           lcd.setCursor(11,1);
           if ((Keypress()==LEFTKEY) || (Keypress()==RIGHTKEY))
             WhenHigh=!(WhenHigh);
@@ -268,7 +350,7 @@ void loop()
         lcd.print("TimeLapse [   ] ");
         lcd.setCursor(0,1);
         //         0123456789012345
-        lcd.print("Delay: 060 secs ");
+        lcd.print("Interval: 060   ");
         tmpDelay=60;
         StartMillis=millis();
         lcd.setCursor(15,0);
@@ -319,7 +401,7 @@ void loop()
             if (tmpDelay>360)
               tmpDelay=360;
           }
-          lcd.setCursor(7,1);
+          lcd.setCursor(10,1);
           PrintDigits(tmpDelay,3);
         }
         NotArmed=true;
@@ -387,7 +469,7 @@ void loop()
             if (tmpDelay>360)
               tmpDelay=360;
           }
-          lcd.setCursor(7,1);
+          lcd.setCursor(6,1);
           PrintDigits(tmpDelay,3);
         }
         NotArmed=true;
@@ -449,6 +531,7 @@ void loop()
 }
 
 
+
 // --- MAIN MENU procedure ---------------------------------------------------------------------------------------------------------------------------
 // Display and move at Main Menu.
 
@@ -481,57 +564,7 @@ void MainMenu()
     {
       NotArmed=false;
       StayInside=false;
-      Mode=MenuSelection;
-/*
-      switch (MenuSelection)
-      {
-        case 1:
-          NotArmed=false;
-          StayInside=false;
-          Mode=1;
-          break;
-        case 2:
-          Mode=2;
-          NotArmed=false;
-          StayInside=false;
-          break;
-        case 3:
-          Mode=3;
-          NotArmed=false;
-          StayInside=false;
-          break;
-        case 4:
-          Mode=4;
-          NotArmed=false;
-          StayInside=false;
-          break;
-        case 5:
-          Mode=5;
-          NotArmed=false;
-          StayInside=false;
-          break;
-        case 6:
-          Mode=6;
-          NotArmed=false;
-          StayInside=false;
-          break;
-        case 7:
-          Mode=7;
-          NotArmed=false;
-          StayInside=false;
-          break;
-        case 8:
-          Mode=8;
-          NotArmed=false;
-          StayInside=false;
-          break;
-        case 9:
-          Mode=9;
-          NotArmed=false;
-          StayInside=false;
-          break;
-      }
-*/      
+      Mode=MenuSelection;  
     }
     if (Keypress() == BACKKEY)
     {
@@ -612,9 +645,9 @@ void Beep(int x)
   for (int j=0; j<x; j++)
   {
     digitalWrite(BuzzerPin, HIGH);
-    delay(100);
+    delay(50);
     digitalWrite(BuzzerPin, LOW);
-    delay(100);
+    delay(50);
   }
 }
 
@@ -878,30 +911,30 @@ void SetupTime()
 
 
 
-// --- SETUP INFRARED/WIRED TRIGGER procedure --------------------------------------------------------------------------------------------------------
-// Setup the trigger type: Wired (by using 2 optocouplers) or by Infrared command or both.
+// --- SETUP INFRARED/PreFocus TRIGGER procedure --------------------------------------------------------------------------------------------------------
+// Setup the trigger type: PreFocus (by using 2 optocouplers) or by Infrared command or both.
 
 void SetupInfrared()
 {
   lcd.clear();
   //         0123456789012345
-  lcd.print("Wired Trigger   ");
+  lcd.print("Pre Focus       ");
   lcd.setCursor(0,1);
-  lcd.print("Enabled:     ");
+  lcd.print("Enabled:        ");
   boolean StayInside=true;
-  boolean tmpWired=Wired;
+  boolean tmpPreFocus=PreFocus;
   while (StayInside)
   {
     if ((Keypress()==LEFTKEY) || (Keypress()==RIGHTKEY))
-      tmpWired=!(tmpWired);
+      tmpPreFocus=!(tmpPreFocus);
     lcd.setCursor(9,1);
-    if (tmpWired)
-      lcd.print("ON ");
+    if (tmpPreFocus)
+      lcd.print("YES");
     else
-      lcd.print("OFF");
+      lcd.print("NO ");
     if (Keypress()==ENTERKEY)
     {
-      Wired=tmpWired;
+      PreFocus=tmpPreFocus;
       StayInside=false;
     }
     if (Keypress()==BACKKEY)
@@ -920,9 +953,9 @@ void SetupInfrared()
       tmpInfrared=!(tmpInfrared);
     lcd.setCursor(9,1);
     if (tmpInfrared)
-      lcd.print("ON ");
+      lcd.print("YES");
     else
-      lcd.print("OFF");
+      lcd.print("NO ");
     if (Keypress()==ENTERKEY)
     {
       Infrared=tmpInfrared;
@@ -935,7 +968,7 @@ void SetupInfrared()
         WriteToMem(10,1);
       else
         WriteToMem(10,0);
-      if (Wired)
+      if (PreFocus)
         WriteToMem(12,1);
       else
         WriteToMem(12,0);
@@ -1188,6 +1221,28 @@ int ReadFromMem(byte address)
 
 
 
+// --- PREFOCUS START procedure ----------------------------------------------------------------------------------------------------------------------
+// Start by keeping the focus HIGH.
+
+void PreFocusStart()
+{
+  if (Debug)  Serial.println("Start focus!");
+  digitalWrite(Optocoupler1, HIGH);
+}
+
+
+
+// --- PREFOCUS STOP procedure -----------------------------------------------------------------------------------------------------------------------
+// Start by keeping the focus HIGH.
+
+void PreFocusStop()
+{
+  if (Debug)  Serial.println("Stop focus.");
+  digitalWrite(Optocoupler1, LOW);
+}
+
+
+
 // --- TRIGGER procedure -----------------------------------------------------------------------------------------------------------------------------
 // Trigger the camera.
 
@@ -1195,26 +1250,25 @@ void Trigger()
 {
   if (PreDelay!=0)
     delay(PreDelay);
-  if (Wired)
-  {
+  if (!PreFocus)
     digitalWrite(Optocoupler1, HIGH);
-    digitalWrite(Optocoupler2, HIGH);
+  digitalWrite(Optocoupler2, HIGH);
+  if (Debug)
+  {
+    Serial.print("Millis from triggering: ");
+    Serial.println(millis()-TriggerMillis);
   }
   if (Infrared)
     Camera.shutterNow();
-  if (MakeSounds)
-    Beep(1);
-  if (Wired)
-  {
-    delay(ShutterDelay);  
-    digitalWrite(Optocoupler1, LOW);
-    digitalWrite(Optocoupler2, LOW);
-  }
+  delay(ShutterDelay);  
+  digitalWrite(Optocoupler1, LOW);
+  digitalWrite(Optocoupler2, LOW);
   delay(AfterDelay);
   if (Debug)  Serial.println("Triggered!");
   if (MakeSounds)
-    Beep(2);
+    Beep(3);
 }
+
 
 
 // --- BULB START procedure --------------------------------------------------------------------------------------------------------------------------
@@ -1226,7 +1280,7 @@ void StartBulb()
   digitalWrite(Optocoupler2, HIGH);
   if (Debug)  Serial.println("Starting Bulb mode!");
   if (MakeSounds)
-    Beep(1);
+    Beep(3);
 }
 
 
@@ -1241,5 +1295,18 @@ void StopBulb()
   if (Debug)  Serial.println("Bulb mode stopped!");
   delay(AfterDelay);
   if (MakeSounds)
-    Beep(2);
+    Beep(3);
+}
+
+
+
+// --- BACKKEY function ------------------------------------------------------------------------------------------------------------------------------
+// For faster checking for back keypress.
+
+boolean Backkey()
+{
+  if (digitalRead(BackButton)==LOW)
+    return true;
+  else
+    return false;
 }
