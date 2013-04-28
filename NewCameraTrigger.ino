@@ -1,27 +1,34 @@
-#include <Wire.h> 
+// --- (New) CAMERA TRIGGER --------------------------------------------------------------------------------------------------------------------------
+//     ©2013, Antonis Maglaras
+//     maglaras at gmail dot com
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+#include <Wire.h>                         // Arduino included Library
 #include <LiquidCrystal_I2C.h>
 #include <DS1307RTC.h>
-#include <Time.h>
+#include <Time.h>                         // Arduino included Library
 #include <MemoryFree.h>
-#include <EEPROM.h>
+#include <EEPROM.h>                       // Arduino included Library
 #include <multiCameraIrControl.h>
 
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "3.20b"
+#define  Version         "3.21b"          // Current Version
 
 
+// Create two (2) custom characters (for visual identification of armed/disarmed mode)
 byte onchar[8] = { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
 byte offchar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B00000 };
 
+// Translate button names to numbers 
 #define  LEFTKEY         1
 #define  RIGHTKEY        2
 #define  ENTERKEY        3
 #define  BACKKEY         4
 #define  NONEKEY         0
 
-
+// Definition of pins used by Arduino
 #define  IRLed          10      // For IR transmitting
 #define  LightSensor    A1      // Built-in Light trigger
 
@@ -37,9 +44,11 @@ byte offchar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
 #define  Optocoupler1   11
 #define  Optocoupler2   12
 
+// Olympus IR remote trigger
 Olympus Camera(IRLed);
 
 
+// Main Menu Strings
 //                     0123456789012345
 char* MenuItems[10] = { "",
                         "-> Light Trigger",    // 1
@@ -52,14 +61,13 @@ char* MenuItems[10] = { "",
                         "-> Infrared/Wire",    // 8
                         "-> Information  ",    // 8
                     };
+                    
+// Definition of global variables
+
 int MenuSelection = 1;
-
 int CurrentHour = 99, CurrentMin = 99, CurrentSec = 99, CurrentDay = 99, CurrentMonth = 99, CurrentYear = 99;
-
 int Mode = 1;
-
 int LightThreshold = 0, Light = 0;
-
 boolean NotArmed = true;
 boolean WhenHigh = true;
 boolean Armed = false;
@@ -68,8 +76,13 @@ int PreDelay, ShutterDelay, AfterDelay;
 long tmpDelay=60;
 long StartMillis, tmpMillis;
 
+// Debug mode. When true, it outputs information data to serial port
 #define    Debug    true
 
+
+
+// --- SETUP procedure -------------------------------------------------------------------------------------------------------------------------------
+// Create custom characters, display a welcome message, setup pins, read and set system variables etc.
 
 void setup()
 {
@@ -85,6 +98,9 @@ void setup()
   lcd.print(" Camera Trigger ");
   lcd.setCursor(0,1);
   lcd.print("Antonis Maglaras");
+  delay(1000);
+  lcd.setCursor(0,1);
+  lcd.print("    WELCOME!    ");
   delay(1000);
   // Setup pins
   pinMode(RightButton, INPUT_PULLUP);  
@@ -123,6 +139,10 @@ void setup()
   NotArmed=true;
 }
 
+
+
+// --- MAIN procedure --------------------------------------------------------------------------------------------------------------------------------
+// Check for system status (armed/disarmed), check for mode selection, display time.
 
 void loop()
 {
@@ -428,6 +448,10 @@ void loop()
   }  
 }
 
+
+// --- MAIN MENU procedure ---------------------------------------------------------------------------------------------------------------------------
+// Display and move at Main Menu.
+
 void MainMenu()
 {
   lcd.clear();
@@ -525,6 +549,11 @@ void MainMenu()
   delay(10);
 }
 
+
+
+// --- RETURN KEYPRESS function ----------------------------------------------------------------------------------------------------------------------
+// Check for keypress and return key.
+
 int Keypress()
 {
   if (digitalRead(LeftButton)==LOW)
@@ -554,6 +583,11 @@ int Keypress()
   return NONEKEY;
 }
 
+
+
+// --- PRINT DIGITS (1, 2, 3 or 4 digits) procedure --------------------------------------------------------------------------------------------------
+// Print digits using leading zeros.
+
 void PrintDigits(int x, int y)
 {
   if (y>3)
@@ -568,6 +602,11 @@ void PrintDigits(int x, int y)
   lcd.print(x);
 }
 
+
+
+// --- BEEP procedure --------------------------------------------------------------------------------------------------------------------------------
+// Make a beep!
+
 void Beep(int x)
 {
   for (int j=0; j<x; j++)
@@ -579,6 +618,10 @@ void Beep(int x)
   }
 }
 
+
+
+// --- DISPLAYTIME procedure -------------------------------------------------------------------------------------------------------------------------
+// Display current time/date
 
 void DisplayTime()
 {
@@ -621,6 +664,11 @@ void DisplayTime()
   lcd.print(" ");
 }
 
+
+
+// --- RESETTIMEVARS procedure -----------------------------------------------------------------------------------------------------------------------
+// Reset time vars. Needed to run before displaying time for first time.
+
 void ResetTimeVars()
 {
   CurrentHour=99;
@@ -630,6 +678,11 @@ void ResetTimeVars()
   CurrentMonth=99;
   CurrentDay=99;
 }
+
+
+
+// --- SETUP TIME procedure --------------------------------------------------------------------------------------------------------------------------
+// Setup the time and save the changes to RealTimeClock.
 
 void SetupTime()
 {
@@ -823,6 +876,11 @@ void SetupTime()
   NotArmed=true;
 }
 
+
+
+// --- SETUP INFRARED/WIRED TRIGGER procedure --------------------------------------------------------------------------------------------------------
+// Setup the trigger type: Wired (by using 2 optocouplers) or by Infrared command or both.
+
 void SetupInfrared()
 {
   lcd.clear();
@@ -899,6 +957,10 @@ void SetupInfrared()
   NotArmed=true;
 }
 
+
+
+// --- MAIN SETUP procedure --------------------------------------------------------------------------------------------------------------------------
+// Main setup procedure. Setting the buzzer and the backlight of the LCD.
 
 void SetupInterface()
 {
@@ -980,6 +1042,10 @@ void SetupInterface()
   NotArmed=true;
 }
 
+
+
+// --- SETUP DELAYS procedure ------------------------------------------------------------------------------------------------------------------------
+// Setup delays (Pre Shot, Shutter (how much time the shutter will stay open) and After Shot).
 
 void SetupDelays()
 {
@@ -1095,6 +1161,9 @@ void SetupDelays()
 
 
 
+// --- WRITE TO EEPROM procedure ---------------------------------------------------------------------------------------------------------------------
+// Write numbers (0-65535) to EEPROM (using 2 bytes).
+
 void WriteToMem(byte address, int number)
 {
 int a = number/256;
@@ -1104,6 +1173,11 @@ EEPROM.write(address,a);
 EEPROM.write(address+1,b);
 }
 
+
+
+// --- READ FRON EEPROM procedure --------------------------------------------------------------------------------------------------------------------
+// Read numbers (0-65535) from EEPROM (using 2 bytes).
+
 int ReadFromMem(byte address)
 {
   int a=EEPROM.read(address);
@@ -1112,6 +1186,10 @@ int ReadFromMem(byte address)
   return a*256+b;
 }
 
+
+
+// --- TRIGGER procedure -----------------------------------------------------------------------------------------------------------------------------
+// Trigger the camera.
 
 void Trigger()
 {
@@ -1139,17 +1217,29 @@ void Trigger()
 }
 
 
+// --- BULB START procedure --------------------------------------------------------------------------------------------------------------------------
+// Start bulb mode.
+
 void StartBulb()
 {
   digitalWrite(Optocoupler1, HIGH);
   digitalWrite(Optocoupler2, HIGH);
+  if (Debug)  Serial.println("Starting Bulb mode!");
   if (MakeSounds)
     Beep(1);
 }
+
+
+
+// --- BULB STOP procedure ---------------------------------------------------------------------------------------------------------------------------
+// Stop bulb mode.
 
 void StopBulb()
 {
   digitalWrite(Optocoupler1, LOW);
   digitalWrite(Optocoupler2, LOW);
+  if (Debug)  Serial.println("Bulb mode stopped!");
   delay(AfterDelay);
+  if (MakeSounds)
+    Beep(2);
 }
