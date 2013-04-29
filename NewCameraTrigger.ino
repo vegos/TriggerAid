@@ -20,7 +20,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "0.6.2b"          // Current Version
+#define  Version         "0.6.5b"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -63,18 +63,18 @@ char* MenuItems[11] = { "",
                         "-> Time Lapse   ",    // Mode 3: Time lapse. 
                         "-> Bulb Mode    ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
                         "-> Set Date/Time",    // Mode 5: Set date & time and save the settings on RTC.
-                        "-> Sound/Backlit",    // Mode 6: Buzzer on/off, lcd backlight on/off
+                        "-> Set Interface",    // Mode 6: Buzzer on/off, lcd backlight on/off, Shortcut key assignment.
                         "-> Set Delays   ",    // Mode 7: Pre delay, Shutter delay, Post delay.
                         "-> PreFocus/IR  ",    // Mode 8: Pre focus triggering, Infrared support.
                         "-> Information  ",    // Mode 9: Version information, memory free, etc.
                         "-> Factory Reset",    //  Mode 10: Factory Reset.
                       };
-                    
+#define TotalOptions    10                     // How many modes we have.
 // Definition of global variables
 
 int MenuSelection = 1;
 int CurrentHour = 99, CurrentMin = 99, CurrentSec = 99, CurrentDay = 99, CurrentMonth = 99, CurrentYear = 99;
-int Mode = 1;
+int Mode = 1, ShortCut;
 int LightThreshold = 0, Light = 0;
 boolean StandBy = true;
 boolean WhenHigh = false;
@@ -83,6 +83,7 @@ boolean BackLight, MakeSounds, Infrared, PreFocus;
 int PreDelay, ShutterDelay, AfterDelay;
 long tmpDelay=60;
 long StartMillis, tmpMillis, TriggerMillis;
+
 
 
 
@@ -134,6 +135,7 @@ void setup()
     PreFocus=true;
   else
     PreFocus=false;
+  ShortCut=ReadFromMem(14);
   //
   if (BackLight)
     lcd.backlight();
@@ -171,6 +173,25 @@ void loop()
       lcd.setCursor(0,1);
       lcd.print("                ");
       ResetTimeVars();
+    }
+    // On BACK key pressed for 3 seconds, go to shortcut
+    if (Keypress()==BACKKEY)
+    {
+      long Temp=millis();
+      {
+        while (Backkey)
+        {
+          if (millis()-Temp>3000)
+          {
+            if (MakeSounds)
+              Beep(3);
+            Mode=ShortCut;
+            StandBy=false;
+            ResetTimeVars();
+            return;
+          }
+        }
+      }
     }
     // On ENTER key press, enter the main menu
     if (Keypress()==ENTERKEY)
@@ -994,6 +1015,38 @@ void SetupInterface()
       StayInside=false;
   }
   StayInside=true;
+  int ShortCutTemp=ShortCut;
+  lcd.clear();
+  lcd.print("Select Shortcut ");
+  lcd.setCursor(0,1);
+  lcd.print(MenuItems[ShortCutTemp]);
+  while (StayInside)
+  {
+    if (Keypress()==LEFTKEY)
+    {
+      ShortCutTemp-=1;
+      if (ShortCutTemp<1)
+        ShortCutTemp=TotalOptions-1;
+    }
+    if (Keypress()==RIGHTKEY)
+    {
+      ShortCutTemp+=1;
+      if (ShortCutTemp>(TotalOptions-1))
+        ShortCutTemp=1;
+    }
+    lcd.setCursor(0,1);
+    lcd.print(MenuItems[ShortCutTemp]);
+    if (Keypress()==ENTERKEY)
+    {
+      ShortCut=ShortCutTemp;
+      StayInside=false;
+    }
+    if (Keypress()==BACKKEY)
+      StayInside=false;
+  }
+  lcd.clear();
+  lcd.print("Setup Interface ");    
+  StayInside=true;  
   lcd.setCursor(0,1);
   lcd.print("Backlight:      ");
   boolean BacklightTemp=BackLight;
@@ -1013,9 +1066,10 @@ void SetupInterface()
       BackLight=BacklightTemp;
       StayInside=false;
       if (MakeSounds)
+      {
         Beep(1);
-      if (MakeSounds)
         WriteToMem(0,1);
+      }
       else
         WriteToMem(0,0);
       if (BackLight)
@@ -1028,6 +1082,7 @@ void SetupInterface()
         WriteToMem(2,0);
         lcd.noBacklight();
       }
+      WriteToMem(14,ShortCut); 
       delay(1000);
     }
     if (Keypress()==BACKKEY)
@@ -1301,9 +1356,10 @@ void FactoryReset()
           WriteToMem(8,250);
           WriteToMem(10,1);
           WriteToMem(12,1);  
-          if (MakeSounds)
-            Beep(3);
+          WriteToMem(14,1);
+          Beep(3);
           delay(1000);
+          SoftReset();
         }
         if (Keypress()==BACKKEY)
         {
