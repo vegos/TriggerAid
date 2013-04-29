@@ -5,6 +5,7 @@
 //     http://www.slr.gr 
 //
 //     Latest source code available at: https://github.com/vegos/NewCameraTrigger
+//
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -19,7 +20,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "0.6.0b"          // Current Version
+#define  Version         "0.6.2b"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -56,7 +57,7 @@ Olympus Camera(IRLed);
 
 
 // Main Menu Strings
-char* MenuItems[10] = { "",
+char* MenuItems[11] = { "",
                         "-> Light Trigger",    // Mode 1: Built-in light trigger
                         "-> Ext. Trigger ",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
                         "-> Time Lapse   ",    // Mode 3: Time lapse. 
@@ -66,6 +67,7 @@ char* MenuItems[10] = { "",
                         "-> Set Delays   ",    // Mode 7: Pre delay, Shutter delay, Post delay.
                         "-> PreFocus/IR  ",    // Mode 8: Pre focus triggering, Infrared support.
                         "-> Information  ",    // Mode 9: Version information, memory free, etc.
+                        "-> Factory Reset",    //  Mode 10: Factory Reset.
                       };
                     
 // Definition of global variables
@@ -500,6 +502,13 @@ void loop()
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
+      case 10:
+        FactoryReset();
+        lcd.clear();
+        StandBy=true;
+        lcd.print(" Camera Trigger ");
+        ResetTimeVars();
+        break;       
     }
   }  
 }
@@ -524,14 +533,14 @@ void MainMenu()
     if (Keypress() == RIGHTKEY)
     {
       MenuSelection+=1;
-      if (MenuSelection>9)
+      if (MenuSelection>10)
         MenuSelection=1;
     }
     if (Keypress() == LEFTKEY)
     {
       MenuSelection-=1;
       if (MenuSelection<1)
-        MenuSelection=9;
+        MenuSelection=10;
     }
     if (Keypress() == ENTERKEY)
     {
@@ -1255,4 +1264,70 @@ boolean Backkey()
     return true;
   else
     return false;
+}
+
+
+
+// --- FACTORY RESET procedure -----------------------------------------------------------------------------------------------------------------------
+// Factory reset & reboot.                  
+
+void FactoryReset()
+{
+  lcd.clear();
+  lcd.print("FACTORY RESET!  ");
+  lcd.setCursor(0,1);
+  lcd.print("Are you sure?   ");
+  boolean StayInside=true;
+  while (StayInside)
+  {
+    if (Keypress()==ENTERKEY)
+    {
+      delay(100);
+      lcd.setCursor(0,1);
+      lcd.print("Confirm?        ");
+      boolean StayInside2 = true;
+      while (StayInside2)
+      {
+        if (Keypress()==ENTERKEY)
+        {
+          for (int i = 0; i < 512; i++)
+            EEPROM.write(i, 0);      
+          lcd.setCursor(0,1);
+          lcd.print("Done!           ");
+          WriteToMem(0,1);
+          WriteToMem(2,1);
+          WriteToMem(4,0);
+          WriteToMem(6,250);
+          WriteToMem(8,250);
+          WriteToMem(10,1);
+          WriteToMem(12,1);  
+          if (MakeSounds)
+            Beep(3);
+          delay(1000);
+        }
+        if (Keypress()==BACKKEY)
+        {
+          StayInside=false;
+          StayInside2=false;
+        }      
+      }
+    }
+    if (Keypress()==BACKKEY)
+    {
+      StayInside=false;
+      ResetTimeVars();
+      return;
+    }
+  }
+  SoftReset();
+}
+
+
+
+// --- SOFTWARE RESET ARDUINO procedure --------------------------------------------------------------------------------------------------------------
+// Reset Arduino.
+
+void SoftReset()
+{
+  asm volatile ("  jmp 0");
 }
