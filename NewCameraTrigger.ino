@@ -20,7 +20,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "0.7.3b"          // Current Version
+#define  Version         "0.7.4b"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -410,8 +410,8 @@ void loop()
           {
             lcd.setCursor(11,0);
             long remaining = (tmpDelay-((millis()-StartMillis)/1000));
-            PrintDigits(remaining,3);
-            if ((millis()-StartMillis)>(tmpDelay*1000))
+            PrintDigits(remaining,3);            
+            if ((millis()-StartMillis)>=(tmpDelay*1000))
             {
               Trigger();
               StartMillis=millis();
@@ -475,7 +475,7 @@ void loop()
             lcd.setCursor(11,0);
             long remaining = (tmpDelay-((millis()-StartMillis)/1000));
             PrintDigits(remaining,3);
-            if ((millis()-StartMillis)>(tmpDelay*1000))
+            if ((millis()-StartMillis)>=(tmpDelay*1000))
             {
               StopBulb();
               Armed=false;
@@ -623,25 +623,29 @@ int Keypress()
 {
   if (digitalRead(LeftButton) == LOW)
   {
-    delay(50);
+    delay(30);
     return LEFTKEY;
   }
-  if (digitalRead(RightButton) == LOW)
-  {
-    delay(50);
-    return RIGHTKEY;
-  }
-  if (digitalRead(EnterButton) == LOW)
-  {
-    delay(50);
-    return ENTERKEY;
-  }
-  if (digitalRead(BackButton) == LOW)
-  {
-    delay(50);
-    return BACKKEY;
-  }
-  return NONEKEY;
+  else
+    if (digitalRead(RightButton) == LOW)
+    {
+      delay(30);
+      return RIGHTKEY;
+    }
+    else
+      if (digitalRead(EnterButton) == LOW)
+      {
+        delay(30);
+        return ENTERKEY;
+      }
+      else
+        if (digitalRead(BackButton) == LOW)
+        {
+          delay(30);
+          return BACKKEY;
+        }
+        else
+          return NONEKEY;
 }
 
 
@@ -1130,12 +1134,12 @@ void SetupInterface()
     {
       ShortCutTemp-=1;
       if (ShortCutTemp<1)
-        ShortCutTemp=TotalOptions-1;
+        ShortCutTemp=4;
     }
     if (Keypress() == RIGHTKEY)
     {
       ShortCutTemp+=1;
-      if (ShortCutTemp>(TotalOptions-1))
+      if (ShortCutTemp>4)
         ShortCutTemp=1;
     }
     lcd.setCursor(0,1);
@@ -1458,6 +1462,7 @@ void FactoryReset()
   lcd.print("FACTORY RESET!  ");
   lcd.setCursor(0,1);
   lcd.print("Are you sure?   ");
+  Beep(1);
   boolean StayInside=true;
   while (StayInside)
   {
@@ -1466,6 +1471,7 @@ void FactoryReset()
       delay(100);
       lcd.setCursor(0,1);
       lcd.print("Confirm?        ");
+      Beep(1);
       boolean StayInside2 = true;
       while (StayInside2)
       {
