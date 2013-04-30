@@ -20,7 +20,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "0.7.2b"          // Current Version
+#define  Version         "0.7.3b"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -962,9 +962,15 @@ void SetupInfrared()
     {
       PreFocus=tmpPreFocus;
       StayInside=false;
+      if (MakeSounds)
+        Beep(1);
     }
     if (Keypress() == BACKKEY)
+    {
       StayInside=false;
+      if (MakeSounds)
+        Beep(2);
+    }
   }
   lcd.clear();
   lcd.print("Wired Triggers  ");
@@ -1004,37 +1010,15 @@ void SetupInfrared()
     if (Keypress() == ENTERKEY)
     {
       OptocouplersStatus = tmpOptocouplersStatus;
-      lcd.setCursor(0,1);
-      lcd.print("Settings Saved! ");
-      switch (OptocouplersStatus)
-      {
-        case 0:
-          Optocoupler1Enabled=true;
-          Optocoupler2Enabled=true;
-          break;
-        case 1:
-          Optocoupler1Enabled=true;
-          Optocoupler2Enabled=false;
-          break;
-        case 2:
-          Optocoupler1Enabled=false;
-          Optocoupler2Enabled=true;
-          break;
-      }
       if (MakeSounds)
         Beep(1);
-      WriteToMem(16,OptocouplersStatus);
       StayInside=false;
-      delay(1000);
     }
     if (Keypress() == BACKKEY)
     {
-      lcd.setCursor(0,1);
-      lcd.print("Not Saved!      ");
       StayInside=false;
       if (MakeSounds)
         Beep(2);
-      delay(1000);
     }
   }
   lcd.clear();
@@ -1066,7 +1050,22 @@ void SetupInfrared()
         WriteToMem(12,1);
       else
         WriteToMem(12,0);
-      StayInside=false;
+      switch (OptocouplersStatus)
+      {
+        case 0:
+          Optocoupler1Enabled=true;
+          Optocoupler2Enabled=true;
+          break;
+        case 1:
+          Optocoupler1Enabled=true;
+          Optocoupler2Enabled=false;
+          break;
+        case 2:
+          Optocoupler1Enabled=false;
+          Optocoupler2Enabled=true;
+          break;
+      }
+      WriteToMem(16,OptocouplersStatus);
       delay(1000);
     }
     if (Keypress() == BACKKEY)
@@ -1108,10 +1107,16 @@ void SetupInterface()
     if (Keypress() == ENTERKEY)
     {
       MakeSounds=MakeSoundsTemp;
+      if (MakeSounds)
+        Beep(1);
       StayInside=false;
     }
     if (Keypress() == BACKKEY)
+    {
       StayInside=false;
+      if (MakeSounds)
+        Beep(2);
+    }
   }
   StayInside=true;
   int ShortCutTemp=ShortCut;
@@ -1139,9 +1144,15 @@ void SetupInterface()
     {
       ShortCut=ShortCutTemp;
       StayInside=false;
+      if (MakeSounds)
+        Beep(1);
     }
     if (Keypress() == BACKKEY)
+    {
       StayInside=false;
+      if (MakeSounds)
+        Beep(2);
+    }      
   }
   lcd.clear();
   lcd.print("Setup Interface ");    
@@ -1229,11 +1240,17 @@ void SetupDelays()
     PrintDigits(tmpPreDelay,4);
     if (Keypress() == ENTERKEY)
     {
+      if (MakeSounds)
+        Beep(1);
       PreDelay=tmpPreDelay;
       StayInside=false;
     }
     if (Keypress() == BACKKEY)
+    {
+      if (MakeSounds)
+        Beep(2);      
       StayInside=false;
+    }
   } 
   StayInside=true;
   lcd.setCursor(0,1);
@@ -1257,11 +1274,17 @@ void SetupDelays()
     PrintDigits(tmpShutterDelay,4);
     if (Keypress() == ENTERKEY)
     {
+      if (MakeSounds)
+        Beep(1);     
       ShutterDelay=tmpShutterDelay;
       StayInside=false;
     }
     if (Keypress() == BACKKEY)
+    {
+      if (MakeSounds)
+        Beep(2);
       StayInside=false;    
+    }
   }
   StayInside=true;
   lcd.setCursor(0,1);
@@ -1394,7 +1417,7 @@ void StartBulb()
   digitalWrite(Optocoupler1Pin, HIGH);
   digitalWrite(Optocoupler2Pin, HIGH);
   if (MakeSounds)
-    Beep(3);
+    Beep(1);
 }
 
 
@@ -1408,7 +1431,7 @@ void StopBulb()
   digitalWrite(Optocoupler2Pin, LOW);
   delay(AfterDelay);
   if (MakeSounds)
-    Beep(3);
+    Beep(2);
 }
 
 
