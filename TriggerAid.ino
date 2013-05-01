@@ -4,6 +4,7 @@
 //     maglaras at gmail dot com
 //     http://www.slr.gr 
 //
+//     More information: http://vegos.github.io/TriggerAid
 //     Latest source code available at: https://github.com/vegos/TriggerAid
 //     Photos etc at: http://www.slr.gr/trigger
 //
@@ -42,12 +43,14 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "1.1.2"          // Current Version
+#define  Version         "1.3.1"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
 byte ONChar[8] =  { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
 byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B00000 };
+
+
 
 // Translate button names to numbers for easier recognition
 #define  LEFTKEY            1
@@ -79,14 +82,15 @@ Olympus Camera(IRLedPin);
 
 
 // Main Menu Strings
-char* MenuItems[8] = { "",
-                       "-> Light Trigger",    // Mode 1: Built-in light trigger
-                       "-> Ext. Trigger ",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
-                       "-> Time Lapse   ",    // Mode 3: Time lapse. 
-                       "-> Bulb Mode    ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
-                       "-> Setup        ",    // Mode 5: Setup System (Delays, Backlight, Buzzer, Triggers, Date/Time)
-                       "-> Information  ",    // Mode 6: Version information, memory free, etc.
-                       "-> Factory Reset",    // Mode 7: Factory Reset.
+char* MenuItems[9] = { "",
+                       "Light Trigger   ",    // Mode 1: Built-in light trigger
+                       "External Trigger",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
+                       "Time Lapse      ",    // Mode 3: Time lapse. 
+                       "Bulb Mode       ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
+                       "High Speed Burst",
+                       "Setup Parameters",    // Mode 6: Setup System (Delays, Backlight, Buzzer, Triggers, Date/Time)
+                       "Information     ",    // Mode 7: Version information, memory free, etc.
+                       "Factory Reset   ",    // Mode 8: Factory Reset.
                       };
 // Definition of global variables
 
@@ -99,7 +103,7 @@ boolean WhenHigh = false;
 boolean Armed = false;
 boolean BackLight, MakeSounds, Infrared, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled;
 boolean StayInside = false;
-int PreDelay, ShutterDelay, AfterDelay;
+int PreDelay, ShutterDelay, AfterDelay, HighSpeedDelay, Limit, LimitTimes;
 long tmpDelay=60;
 long StartMillis, tmpMillis, TriggerMillis;
 
@@ -155,6 +159,8 @@ void setup()
     PreFocus=false;
   ShortCut=ReadFromMem(14);
   OptocouplersStatus=ReadFromMem(16);
+  HighSpeedDelay=ReadFromMem(18);
+  LimitTimes=ReadFromMem(20);
   switch (OptocouplersStatus)
   {
     case 0:
@@ -528,12 +534,92 @@ void loop()
         ResetTimeVars();
         break;
       case 5:
-        SetupMenu();
+        lcd.clear();
+        lcd.print("HighSpeed Burst ");
+        lcd.setCursor(0,1);
+        lcd.print("Interval:     ms");
+        tmpDelay=50;
+        lcd.setCursor(15,0);
+        lcd.write(2);
+        Armed=false;  
+        Limit = 1;
+        while (Keypress() != BACKKEY)
+        {
+          if (Keypress() == ENTERKEY)
+          {
+            Armed = !(Armed);
+            if (Armed)
+            {
+              lcd.setCursor(15,0);
+              lcd.write(1);
+              lcd.setCursor(0,1);
+              lcd.print("Shooting!       ");
+              StartMillis=millis();
+              StayInside=true;
+              Limit=1;
+              while (StayInside)
+              {
+                if (millis()-StartMillis>tmpDelay)
+                {
+                  HighSpeedTrigger();
+                  Limit+=1;
+                  if (Limit>LimitTimes)
+                  {
+                    lcd.setCursor(15,0);
+                    lcd.write(2);
+                    StayInside=false;
+                    Armed=false;
+                    lcd.setCursor(0,1);
+                    lcd.print("Interval:     ms");
+                  }
+                  StartMillis=millis();
+                }
+                if (digitalRead(BackButton)==LOW)
+                {
+                  lcd.setCursor(15,0);
+                  lcd.write(2);
+                  StayInside=false;
+                  Armed=false;
+                  lcd.setCursor(0,1);
+                  lcd.print("Interval:     ms");
+                }
+              }
+            }
+            else
+            {
+              lcd.setCursor(15,0);
+              lcd.write(2);
+              lcd.setCursor(0,1);
+              lcd.print("Interval:     ms");
+            }
+          }
+          if (Keypress() == LEFTKEY)
+          {
+            tmpDelay-=1;
+            if (tmpDelay<1)
+              tmpDelay=1;
+          }
+          if (Keypress() == RIGHTKEY)
+          {
+            tmpDelay+=1;
+            if (tmpDelay>500)
+              tmpDelay=500;
+          }
+          lcd.setCursor(10,1);
+          PrintDigits(tmpDelay,3);         
+        }
+        StandBy=true;
         lcd.clear();
         lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;
       case 6:
+        SetupMenu();
+        lcd.clear();
+        lcd.print("   TriggerAid   ");
+        ResetTimeVars();
+        break;
+      case 7:
         lcd.clear();
         lcd.print("Version: ");
         lcd.print(Version);
@@ -552,7 +638,7 @@ void loop()
         lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;
-      case 7:
+      case 8:
         FactoryReset();
         lcd.clear();
         StandBy=true;
@@ -584,14 +670,14 @@ void MainMenu()
     if (Keypress() == RIGHTKEY)
     {
       MenuSelection+=1;
-      if (MenuSelection>7)
+      if (MenuSelection>8)
         MenuSelection=1;
     }
     if (Keypress() == LEFTKEY)
     {
       MenuSelection-=1;
       if (MenuSelection<1)
-        MenuSelection=7;
+        MenuSelection=8;
     }
     if (Keypress() == ENTERKEY)
     {
@@ -1195,6 +1281,68 @@ void SetupMenu()
     SettingsNotSaved();
   }
   StayInside=true;
+  lcd.clear();
+  lcd.print("HighSpeed Delay ");
+  lcd.setCursor(0,1);
+  lcd.print("Millis: ");
+  int tmpHighSpeedDelay=HighSpeedDelay;
+  while (StayInside)
+  {
+    if (Keypress() == LEFTKEY)
+    {
+      tmpHighSpeedDelay-=1;
+      if (tmpHighSpeedDelay<0)
+        tmpHighSpeedDelay=100;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      tmpHighSpeedDelay+=1;
+      if (tmpHighSpeedDelay>100)
+        tmpHighSpeedDelay=1;
+    }
+    lcd.setCursor(7,1);
+    PrintDigits(tmpHighSpeedDelay,3);
+    if (Keypress() == ENTERKEY)
+    {
+      HighSpeedDelay=tmpHighSpeedDelay;
+      WriteToMem(18,HighSpeedDelay);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+      SettingsNotSaved();
+  }
+  StayInside=true;
+  lcd.clear();
+  lcd.print("HighSpeed Limit");
+  lcd.setCursor(0,1);
+  lcd.print("Times: ");
+  int tmpLimitTimes=LimitTimes;
+  while (StayInside)
+  {
+    if (Keypress() == LEFTKEY)
+    {
+      tmpLimitTimes-=1;
+      if (tmpLimitTimes<0)
+        tmpLimitTimes=0;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      tmpLimitTimes+=1;
+      if (tmpLimitTimes>50)
+        tmpLimitTimes=50;
+    }
+    lcd.setCursor(7,1);
+    PrintDigits(tmpLimitTimes,2);
+    if (Keypress() == ENTERKEY)
+    {
+      LimitTimes=tmpLimitTimes;
+      WriteToMem(20,LimitTimes);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+      SettingsNotSaved();
+  }
+  StayInside=true;
   int ShortCutTemp=ShortCut;
   lcd.clear();
   lcd.print("Shortcut        ");
@@ -1385,6 +1533,20 @@ void Trigger()
 
 
 
+// --- HIGH SPEED TRIGGER procedure ------------------------------------------------------------------------------------------------------------------
+// High-Speed Trigger (for flashes). Can trigger up to 50 times, on every millisecond. Works best with high speed flash units (due to recharging).
+
+
+void HighSpeedTrigger()
+{
+  digitalWrite(Optocoupler1Pin, HIGH);
+  digitalWrite(Optocoupler2Pin, HIGH);
+  delay(HighSpeedDelay);
+  digitalWrite(Optocoupler1Pin, LOW);
+  digitalWrite(Optocoupler2Pin, LOW);
+}
+
+
 
 // --- BULB START procedure --------------------------------------------------------------------------------------------------------------------------
 // Start bulb mode.
@@ -1528,3 +1690,4 @@ void SettingsNotSaved()
     Beep(2);
   delay(500);     
 }
+
