@@ -5,8 +5,30 @@
 //     http://www.slr.gr 
 //
 //     Latest source code available at: https://github.com/vegos/NewCameraTrigger
+//     Photos etc at: http://www.slr.gr/trigger
 //
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
+//
+// Schematic
+// ---------
+// Απλά schematic δεν υπάρχει :)
+//
+// Το setup πάνω-κάτω είναι το εξής:
+//
+// 1 Arduino Leonardo 
+// 1 ProtoShield
+// 1 Κουτί (LinkSprite Clear Arduino Case)
+// 1 IR LED για ενεργοποίηση φωτογραφικής μηχανής μέσω IR
+// 2 Optocouplers (MOC3021 - 400 Volts Peak)
+// 1 Photodiode για έλεγχο του φωτός
+// 4 push-switches (για το πληκτρολόγιο, Αριστερά/Δεξιά/Enter/Back)
+// 1 LCD οθόνη 16Χ2 με backlight
+// 1 I2C driver για την LCD οθόνη
+// Αντιστάσεις, connectors, κλπ :)
+//
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 
 
 // Libraries used in this sketch          -- Many thanks to the creators of the following libraries!
@@ -20,7 +42,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "0.8.2b"          // Current Version
+#define  Version         "1.0.2"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -162,6 +184,7 @@ void setup()
   if (MakeSounds)
     Beep(1);
 }
+
 
 
 
@@ -542,6 +565,7 @@ void loop()
 
 
 
+
 // --- MAIN MENU procedure ---------------------------------------------------------------------------------------------------------------------------
 // Display and move at Main Menu.
 
@@ -593,6 +617,7 @@ void MainMenu()
 
 
 
+
 // --- RETURN KEYPRESS function ----------------------------------------------------------------------------------------------------------------------
 // Check for keypress and return key.
 
@@ -627,6 +652,7 @@ int Keypress()
 
 
 
+
 // --- PRINT DIGITS (1, 2, 3 or 4 digits) procedure --------------------------------------------------------------------------------------------------
 // Print digits using leading zeros.
 
@@ -646,6 +672,7 @@ void PrintDigits(int x, int y)
 
 
 
+
 // --- BEEP procedure --------------------------------------------------------------------------------------------------------------------------------
 // Make a beep!
 
@@ -659,6 +686,7 @@ void Beep(int x)
     delay(50);
   }
 }
+
 
 
 
@@ -705,6 +733,7 @@ void DisplayTime()
   lcd.setCursor(15,1);
   lcd.print(" ");
 }
+
 
 
 
@@ -955,6 +984,7 @@ void SetupTime()
 
 
 
+
 // --- SETUP INFRARED/PreFocus TRIGGER procedure --------------------------------------------------------------------------------------------------------
 // Setup the trigger type: PreFocus (by using 2 optocouplers) or by Infrared command or both.
 
@@ -1072,95 +1102,6 @@ void SetupMenu()
       SettingsNotSaved();
   }
   lcd.clear();
-  lcd.print("Buzzer          ");
-  lcd.setCursor(0,1);
-  StayInside=true;
-  boolean MakeSoundsTemp = MakeSounds;
-  while (StayInside)
-  {
-    if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
-      MakeSoundsTemp=!(MakeSoundsTemp);
-    lcd.setCursor(0,1);
-    if (MakeSoundsTemp)
-      lcd.print("Enabled ");
-    else
-      lcd.print("Disabled");
-    if (Keypress() == ENTERKEY)
-    {
-      MakeSounds=MakeSoundsTemp;
-      if (MakeSounds)
-        WriteToMem(0,1);
-      else
-        WriteToMem(0,0);
-      SettingsSaved();
-    }
-    if (Keypress() == BACKKEY)
-      SettingsNotSaved();
-  }
-  StayInside=true;
-  int ShortCutTemp=ShortCut;
-  lcd.clear();
-  lcd.print("Shortcut        ");
-  lcd.setCursor(0,1);
-  lcd.print(MenuItems[ShortCutTemp]);
-  while (StayInside)
-  {
-    if (Keypress() == LEFTKEY)
-    {
-      ShortCutTemp-=1;
-      if (ShortCutTemp<1)
-        ShortCutTemp=4;
-    }
-    if (Keypress() == RIGHTKEY)
-    {
-      ShortCutTemp+=1;
-      if (ShortCutTemp>4)
-        ShortCutTemp=1;
-    }
-    lcd.setCursor(0,1);
-    lcd.print(MenuItems[ShortCutTemp]);
-    if (Keypress() == ENTERKEY)
-    {
-      ShortCut=ShortCutTemp;
-      WriteToMem(14,ShortCut);         
-      SettingsSaved();
-    }
-    if (Keypress() == BACKKEY)
-      SettingsNotSaved();
-  }
-  lcd.clear();
-  lcd.print("LCD Backlight   ");    
-  StayInside=true;  
-  lcd.setCursor(0,1);
-  boolean BacklightTemp=BackLight;
-  while (StayInside)
-  {
-    if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
-      BacklightTemp=!(BacklightTemp);
-    lcd.setCursor(0,1);
-    if (BacklightTemp)
-      lcd.print("Enabled ");
-    else
-      lcd.print("Disabled");
-    if (Keypress() == ENTERKEY)
-    {
-      BackLight=BacklightTemp;
-      if (BackLight)
-      {
-        WriteToMem(2,1);
-        lcd.backlight();
-      }
-      else
-      {
-        WriteToMem(2,0);
-        lcd.noBacklight();
-      }
-      SettingsSaved();
-    }
-    if (Keypress() == BACKKEY)
-      SettingsNotSaved();
-  }  
-  lcd.clear();
   lcd.print("Pre Shot Delay  ");
   lcd.setCursor(0,1);
   lcd.print("Millis:         ");
@@ -1253,6 +1194,95 @@ void SetupMenu()
     if (Keypress() == BACKKEY)
     SettingsNotSaved();
   }
+  StayInside=true;
+  int ShortCutTemp=ShortCut;
+  lcd.clear();
+  lcd.print("Shortcut        ");
+  lcd.setCursor(0,1);
+  lcd.print(MenuItems[ShortCutTemp]);
+  while (StayInside)
+  {
+    if (Keypress() == LEFTKEY)
+    {
+      ShortCutTemp-=1;
+      if (ShortCutTemp<1)
+        ShortCutTemp=4;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      ShortCutTemp+=1;
+      if (ShortCutTemp>4)
+        ShortCutTemp=1;
+    }
+    lcd.setCursor(0,1);
+    lcd.print(MenuItems[ShortCutTemp]);
+    if (Keypress() == ENTERKEY)
+    {
+      ShortCut=ShortCutTemp;
+      WriteToMem(14,ShortCut);         
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+      SettingsNotSaved();
+  }
+  lcd.clear();
+  lcd.print("LCD Backlight   ");    
+  StayInside=true;  
+  lcd.setCursor(0,1);
+  boolean BacklightTemp=BackLight;
+  while (StayInside)
+  {
+    if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
+      BacklightTemp=!(BacklightTemp);
+    lcd.setCursor(0,1);
+    if (BacklightTemp)
+      lcd.print("Enabled ");
+    else
+      lcd.print("Disabled");
+    if (Keypress() == ENTERKEY)
+    {
+      BackLight=BacklightTemp;
+      if (BackLight)
+      {
+        WriteToMem(2,1);
+        lcd.backlight();
+      }
+      else
+      {
+        WriteToMem(2,0);
+        lcd.noBacklight();
+      }
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+      SettingsNotSaved();
+  }  
+  lcd.clear();
+  lcd.print("Buzzer          ");
+  lcd.setCursor(0,1);
+  StayInside=true;
+  boolean MakeSoundsTemp = MakeSounds;
+  while (StayInside)
+  {
+    if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
+      MakeSoundsTemp=!(MakeSoundsTemp);
+    lcd.setCursor(0,1);
+    if (MakeSoundsTemp)
+      lcd.print("Enabled ");
+    else
+      lcd.print("Disabled");
+    if (Keypress() == ENTERKEY)
+    {
+      MakeSounds=MakeSoundsTemp;
+      if (MakeSounds)
+        WriteToMem(0,1);
+      else
+        WriteToMem(0,0);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+      SettingsNotSaved();
+  }  
   lcd.clear();
   lcd.print("Setup Time?");
   StayInside=true;
@@ -1278,17 +1308,18 @@ void SetupMenu()
 
 
 
+
 // --- WRITE TO EEPROM procedure ---------------------------------------------------------------------------------------------------------------------
 // Write numbers (0-65535) to EEPROM (using 2 bytes).
 
 void WriteToMem(byte address, int number)
 {
-int a = number/256;
-int b = number % 256;
-
-EEPROM.write(address,a);
-EEPROM.write(address+1,b);
+  int a = number/256;
+  int b = number % 256;
+  EEPROM.write(address,a);
+  EEPROM.write(address+1,b);
 }
+
 
 
 
@@ -1305,6 +1336,7 @@ int ReadFromMem(byte address)
 
 
 
+
 // --- PREFOCUS START procedure ----------------------------------------------------------------------------------------------------------------------
 // Start by keeping the focus HIGH.
 
@@ -1315,6 +1347,7 @@ void PreFocusStart()
 
 
 
+
 // --- PREFOCUS STOP procedure -----------------------------------------------------------------------------------------------------------------------
 // Start by keeping the focus HIGH.
 
@@ -1322,6 +1355,7 @@ void PreFocusStop()
 {
   digitalWrite(Optocoupler1Pin, LOW);
 }
+
 
 
 
@@ -1348,6 +1382,7 @@ void Trigger()
   if (MakeSounds)
     Beep(3);
 }
+
 
 
 
@@ -1378,6 +1413,7 @@ void StopBulb()
 
 
 
+
 // --- BACKKEY function ------------------------------------------------------------------------------------------------------------------------------
 // For faster checking for back keypress.
 
@@ -1388,6 +1424,7 @@ boolean Backkey()
   else
     return false;
 }
+
 
 
 
@@ -1462,6 +1499,7 @@ void SoftReset()
 
 
 
+
 // --- SAVE SETTINGS MSG procedure -------------------------------------------------------------------------------------------------------------------
 // Make sound and display confirm/save message.
 
@@ -1474,6 +1512,7 @@ void SettingsSaved()
     Beep(1);
   delay(500); 
 }
+
 
 
 
