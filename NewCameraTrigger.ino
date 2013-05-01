@@ -20,7 +20,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "0.7.4b"          // Current Version
+#define  Version         "0.8.2b"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -57,19 +57,15 @@ Olympus Camera(IRLedPin);
 
 
 // Main Menu Strings
-char* MenuItems[11] = { "",
-                        "-> Light Trigger",    // Mode 1: Built-in light trigger
-                        "-> Ext. Trigger ",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
-                        "-> Time Lapse   ",    // Mode 3: Time lapse. 
-                        "-> Bulb Mode    ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
-                        "-> Set Date/Time",    // Mode 5: Set date & time and save the settings on RTC.
-                        "-> Set Interface",    // Mode 6: Buzzer on/off, lcd backlight on/off, Shortcut key assignment.
-                        "-> Set Delays   ",    // Mode 7: Pre delay, Shutter delay, Post delay.
-                        "-> Set Triggers ",    // Mode 8: Pre focus triggering, Infrared support, Triggers enabled.
-                        "-> Information  ",    // Mode 9: Version information, memory free, etc.
-                        "-> Factory Reset",    //  Mode 10: Factory Reset.
+char* MenuItems[8] = { "",
+                       "-> Light Trigger",    // Mode 1: Built-in light trigger
+                       "-> Ext. Trigger ",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
+                       "-> Time Lapse   ",    // Mode 3: Time lapse. 
+                       "-> Bulb Mode    ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
+                       "-> Setup        ",    // Mode 5: Setup System (Delays, Backlight, Buzzer, Triggers, Date/Time)
+                       "-> Information  ",    // Mode 6: Version information, memory free, etc.
+                       "-> Factory Reset",    // Mode 7: Factory Reset.
                       };
-#define TotalOptions    10                     // How many modes we have.
 // Definition of global variables
 
 int MenuSelection = 1;
@@ -80,6 +76,7 @@ boolean StandBy = true;
 boolean WhenHigh = false;
 boolean Armed = false;
 boolean BackLight, MakeSounds, Infrared, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled;
+boolean StayInside = false;
 int PreDelay, ShutterDelay, AfterDelay;
 long tmpDelay=60;
 long StartMillis, tmpMillis, TriggerMillis;
@@ -155,8 +152,8 @@ void setup()
       Optocoupler2Enabled=false;
       break;
   }
-  
   //
+  delay(1000);
   if (BackLight)
     lcd.backlight();
   else
@@ -164,7 +161,6 @@ void setup()
   StandBy=true;
   if (MakeSounds)
     Beep(1);
-  delay(1000);
 }
 
 
@@ -509,31 +505,12 @@ void loop()
         ResetTimeVars();
         break;
       case 5:
-        SetupTime();
-        StandBy=true;
+        SetupMenu();
         lcd.clear();
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
       case 6:
-        SetupInterface();
-        lcd.clear();
-        lcd.print(" Camera Trigger ");
-        ResetTimeVars();
-        break;
-      case 7:
-        SetupDelays();
-        lcd.clear();
-        lcd.print(" Camera Trigger ");
-        ResetTimeVars();
-        break;
-      case 8:
-        SetupInfrared();
-        lcd.clear();
-        lcd.print(" Camera Trigger ");
-        ResetTimeVars();       
-        break;
-      case 9:
         lcd.clear();
         lcd.print("Version: ");
         lcd.print(Version);
@@ -552,7 +529,7 @@ void loop()
         lcd.print(" Camera Trigger ");
         ResetTimeVars();
         break;
-      case 10:
+      case 7:
         FactoryReset();
         lcd.clear();
         StandBy=true;
@@ -575,7 +552,7 @@ void MainMenu()
   lcd.print("Select Mode     ");
   lcd.setCursor(0,1);
   MenuSelection=1;
-  boolean StayInside=true;
+  StayInside=true;
   while (StayInside)
   {
     lcd.setCursor(0,1);
@@ -583,14 +560,14 @@ void MainMenu()
     if (Keypress() == RIGHTKEY)
     {
       MenuSelection+=1;
-      if (MenuSelection>10)
+      if (MenuSelection>7)
         MenuSelection=1;
     }
     if (Keypress() == LEFTKEY)
     {
       MenuSelection-=1;
       if (MenuSelection<1)
-        MenuSelection=10;
+        MenuSelection=7;
     }
     if (Keypress() == ENTERKEY)
     {
@@ -752,14 +729,14 @@ void ResetTimeVars()
 void SetupTime()
 {
   lcd.clear();
-  lcd.print("Hour: ");
+  lcd.print("Change Hour");
   lcd.setCursor(0,1);
-  lcd.print("Change hour");
-  boolean StayInside=true;
+  lcd.print("Hour: ");
+  StayInside=true;
   CurrentHour=hour();
   while (StayInside)
   {
-    lcd.setCursor(6,0);
+    lcd.setCursor(6,1);
     PrintDigits(CurrentHour,2);
     if (Keypress() == RIGHTKEY)
     {
@@ -776,20 +753,27 @@ void SetupTime()
     if (Keypress() == ENTERKEY)
     {
       setTime(CurrentHour,minute(), second(), day(), month(), year());
+      RTC.set(now());
       StayInside=false;
+      if (MakeSounds)
+        Beep(1);
     }
     if (Keypress() == BACKKEY)
+    {
       StayInside=false;
+      if (MakeSounds)
+        Beep(2);
+    }
   }
   lcd.clear();
-  lcd.print("Minutes: ");
+  lcd.print("Change Minutes");
   lcd.setCursor(0,1);
-  lcd.print("Change minutes");
+  lcd.print("Minutes: ");
   StayInside=true;
   CurrentMin=minute();
   while (StayInside)
   {
-    lcd.setCursor(9,0);
+    lcd.setCursor(9,1);
     PrintDigits(CurrentMin,2);
     if (Keypress() == RIGHTKEY)
     {
@@ -806,42 +790,64 @@ void SetupTime()
     if (Keypress() == ENTERKEY)
     {
       setTime(hour(),CurrentMin, second(), day(), month(), year());
+      RTC.set(now());
       StayInside=false;
+      if (MakeSounds)
+        Beep(1);
     }
     if (Keypress() == BACKKEY)
+    {
+      if (MakeSounds)
+        Beep(2);
       StayInside=false;
+    }
   }
   lcd.clear();
-  lcd.print("Seconds: ");
+  lcd.print("Change Seconds");
   lcd.setCursor(0,1);
-  lcd.print("Reset seconds");
+  lcd.print("Seconds: ");
   StayInside=true;
   CurrentSec=second();
   while (StayInside)
   {
-    lcd.setCursor(9,0);
+    lcd.setCursor(9,1);
     PrintDigits(CurrentSec,2);
     if (Keypress() == RIGHTKEY)
-      CurrentSec=0;
+    {
+      CurrentSec+=1;
+      if (CurrentSec>59)
+        CurrentSec=0;
+    }
     if (Keypress() == LEFTKEY)
-      CurrentSec=0;
+    {
+      CurrentSec-=1;
+      if (CurrentSec<0)
+        CurrentSec=59;
+    }
     if (Keypress() == ENTERKEY)
     {
-      setTime(hour(),minute(), 0, day(), month(), year());
+      setTime(hour(),minute(), CurrentSec, day(), month(), year());
       StayInside=false;
+      if (MakeSounds)
+        Beep(1);
+      RTC.set(now());
     }
     if (Keypress() == BACKKEY)
+    {
+      if (MakeSounds)
+        Beep(2);
       StayInside=false;
+    }
   }
   lcd.clear();
-  lcd.print("Day: ");
+  lcd.print("Change Day");
   lcd.setCursor(0,1);
-  lcd.print("Change day");
+  lcd.print("Day: ");
   StayInside=true;
   CurrentDay=day();
   while (StayInside)
   {
-    lcd.setCursor(5,0);
+    lcd.setCursor(5,1);
     PrintDigits(CurrentDay,2);
     if (Keypress() == RIGHTKEY)
     {
@@ -859,19 +865,26 @@ void SetupTime()
     {
       setTime(hour(),minute(), second(), CurrentDay, month(), year());
       StayInside=false;
+      RTC.set(now());
+      if (MakeSounds)
+        Beep(1);
     }
     if (Keypress() == BACKKEY)
+    {
       StayInside=false;
+      if (MakeSounds)
+        Beep(2);
+    }
   }
   lcd.clear();
-  lcd.print("Month: ");
+  lcd.print("Change Month");
   lcd.setCursor(0,1);
-  lcd.print("Change month");
+  lcd.print("Month: ");
   StayInside=true;
   CurrentMonth=month();
   while (StayInside)
   {
-    lcd.setCursor(7,0);
+    lcd.setCursor(7,1);
     PrintDigits(CurrentMonth,2);
     if (Keypress() == RIGHTKEY)
     {
@@ -888,20 +901,27 @@ void SetupTime()
     if (Keypress() == ENTERKEY)
     {
       setTime(hour(),minute(), second(), day(), CurrentMonth, year());
+      RTC.set(now());
       StayInside=false;
+      if (MakeSounds)
+        Beep(1);
     }
     if (Keypress() == BACKKEY)
+    {
       StayInside=false;
+      if (MakeSounds)
+        Beep(2);
+    }
   }
   lcd.clear();
-  lcd.print("Year: ");
+  lcd.print("Change Year");
   lcd.setCursor(0,1);
-  lcd.print("Change year");
+  lcd.print("Year: ");
   StayInside=true;
   CurrentYear=year();
   while (StayInside)
   {
-    lcd.setCursor(7,0);
+    lcd.setCursor(6,1);
     PrintDigits(CurrentYear,4);
     if (Keypress() == RIGHTKEY)
     {
@@ -917,27 +937,20 @@ void SetupTime()
     }
     if (Keypress() == ENTERKEY)
     {
-      lcd.clear();
       setTime(hour(),minute(), second(), day(), month(), CurrentYear);
       RTC.set(now());
       StayInside=false;
-      lcd.print("Datetime saved!");
       if (MakeSounds)
         Beep(1);
     }
     if (Keypress() == BACKKEY)
     {
-      lcd.clear();
       setSyncProvider(RTC.get);
       StayInside=false;
-      lcd.print("Not saved!");
       if (MakeSounds)
         Beep(2);
     }
   }
-  delay(2000);
-  Mode=1;
-  StandBy=true;
 }
 
 
@@ -945,36 +958,33 @@ void SetupTime()
 // --- SETUP INFRARED/PreFocus TRIGGER procedure --------------------------------------------------------------------------------------------------------
 // Setup the trigger type: PreFocus (by using 2 optocouplers) or by Infrared command or both.
 
-void SetupInfrared()
+void SetupMenu()
 {
   lcd.clear();
   lcd.print("Pre Focus       ");
   lcd.setCursor(0,1);
-  lcd.print("Enabled:        ");
-  boolean StayInside=true;
+  StayInside=true;
   boolean tmpPreFocus=PreFocus;
   while (StayInside)
   {
     if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
       tmpPreFocus=!(tmpPreFocus);
-    lcd.setCursor(9,1);
+    lcd.setCursor(0,1);
     if (tmpPreFocus)
-      lcd.print("YES");
+      lcd.print("Enabled ");
     else
-      lcd.print("NO ");
+      lcd.print("Disabled");
     if (Keypress() == ENTERKEY)
     {
       PreFocus=tmpPreFocus;
-      StayInside=false;
-      if (MakeSounds)
-        Beep(1);
+      if (PreFocus)
+        WriteToMem(12,1);
+      else
+        WriteToMem(12,0);     
+     SettingsSaved();
     }
     if (Keypress() == BACKKEY)
-    {
-      StayInside=false;
-      if (MakeSounds)
-        Beep(2);
-    }
+      SettingsNotSaved();
   }
   lcd.clear();
   lcd.print("Wired Triggers  ");
@@ -1014,46 +1024,6 @@ void SetupInfrared()
     if (Keypress() == ENTERKEY)
     {
       OptocouplersStatus = tmpOptocouplersStatus;
-      if (MakeSounds)
-        Beep(1);
-      StayInside=false;
-    }
-    if (Keypress() == BACKKEY)
-    {
-      StayInside=false;
-      if (MakeSounds)
-        Beep(2);
-    }
-  }
-  lcd.clear();
-  lcd.print("Infrared Trigger");
-  lcd.setCursor(0,1);
-  StayInside=true;
-  boolean tmpInfrared=Infrared;
-  while (StayInside)
-  {
-    if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
-      tmpInfrared = !(tmpInfrared);
-    lcd.setCursor(9,1);
-    if (tmpInfrared)
-      lcd.print("Enabled ");
-    else
-      lcd.print("Disabled");
-    if (Keypress() == ENTERKEY)
-    {
-      Infrared=tmpInfrared;
-      lcd.setCursor(0,1);
-      lcd.print("Settings Saved! ");
-      if (MakeSounds)
-        Beep(1);
-      if (Infrared)
-        WriteToMem(10,1);
-      else
-        WriteToMem(10,0);
-      if (PreFocus)
-        WriteToMem(12,1);
-      else
-        WriteToMem(12,0);
       switch (OptocouplersStatus)
       {
         case 0:
@@ -1069,63 +1039,68 @@ void SetupInfrared()
           Optocoupler2Enabled=true;
           break;
       }
-      WriteToMem(16,OptocouplersStatus);
-      delay(1000);
+      WriteToMem(16,OptocouplersStatus);    
+      SettingsSaved();
     }
     if (Keypress() == BACKKEY)
-    {
-      lcd.setCursor(0,1);
-      lcd.print("Not Saved!      ");
-      StayInside=false;
-      if (MakeSounds)
-        Beep(2);
-      delay(1000);
-    }
+      SettingsNotSaved();
   }
-  Mode=1;
-  StandBy=true;
-}
-
-
-
-// --- MAIN SETUP procedure --------------------------------------------------------------------------------------------------------------------------
-// Main setup procedure. Setting the buzzer and the backlight of the LCD.
-
-void SetupInterface()
-{
   lcd.clear();
-  lcd.print("Setup Interface ");
+  lcd.print("Infrared Trigger");
   lcd.setCursor(0,1);
-  lcd.print("Buzzer:      ");
-  boolean StayInside=true;
+  StayInside=true;
+  boolean tmpInfrared=Infrared;
+  while (StayInside)
+  {
+    if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
+      tmpInfrared = !(tmpInfrared);
+    lcd.setCursor(0,1);
+    if (tmpInfrared)
+      lcd.print("Enabled ");
+    else
+      lcd.print("Disabled");
+    if (Keypress() == ENTERKEY)
+    {
+      Infrared=tmpInfrared;
+      if (Infrared)
+        WriteToMem(10,1);
+      else
+        WriteToMem(10,0);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+      SettingsNotSaved();
+  }
+  lcd.clear();
+  lcd.print("Buzzer          ");
+  lcd.setCursor(0,1);
+  StayInside=true;
   boolean MakeSoundsTemp = MakeSounds;
   while (StayInside)
   {
     if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
       MakeSoundsTemp=!(MakeSoundsTemp);
-    lcd.setCursor(8,1);
+    lcd.setCursor(0,1);
     if (MakeSoundsTemp)
-      lcd.print("ON ");
+      lcd.print("Enabled ");
     else
-      lcd.print("OFF");
+      lcd.print("Disabled");
     if (Keypress() == ENTERKEY)
     {
       MakeSounds=MakeSoundsTemp;
       if (MakeSounds)
-        Beep(1);
-      StayInside=false;
+        WriteToMem(0,1);
+      else
+        WriteToMem(0,0);
+      SettingsSaved();
     }
     if (Keypress() == BACKKEY)
-    {
-      StayInside=false;
-      if (MakeSounds)
-        Beep(2);
-    }
+      SettingsNotSaved();
   }
   StayInside=true;
   int ShortCutTemp=ShortCut;
   lcd.clear();
-  lcd.print("Select Shortcut ");
+  lcd.print("Shortcut        ");
   lcd.setCursor(0,1);
   lcd.print(MenuItems[ShortCutTemp]);
   while (StayInside)
@@ -1147,45 +1122,29 @@ void SetupInterface()
     if (Keypress() == ENTERKEY)
     {
       ShortCut=ShortCutTemp;
-      StayInside=false;
-      if (MakeSounds)
-        Beep(1);
+      WriteToMem(14,ShortCut);         
+      SettingsSaved();
     }
     if (Keypress() == BACKKEY)
-    {
-      StayInside=false;
-      if (MakeSounds)
-        Beep(2);
-    }      
+      SettingsNotSaved();
   }
   lcd.clear();
-  lcd.print("Setup Interface ");    
+  lcd.print("LCD Backlight   ");    
   StayInside=true;  
   lcd.setCursor(0,1);
-  lcd.print("Backlight:      ");
   boolean BacklightTemp=BackLight;
   while (StayInside)
   {
     if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
       BacklightTemp=!(BacklightTemp);
-    lcd.setCursor(11,1);
+    lcd.setCursor(0,1);
     if (BacklightTemp)
-      lcd.print("ON ");
+      lcd.print("Enabled ");
     else
-      lcd.print("OFF");
+      lcd.print("Disabled");
     if (Keypress() == ENTERKEY)
     {
-      lcd.setCursor(0,1);
-      lcd.print("Settings Saved! ");
       BackLight=BacklightTemp;
-      StayInside=false;
-      if (MakeSounds)
-      {
-        Beep(1);
-        WriteToMem(0,1);
-      }
-      else
-        WriteToMem(0,0);
       if (BackLight)
       {
         WriteToMem(2,1);
@@ -1196,35 +1155,16 @@ void SetupInterface()
         WriteToMem(2,0);
         lcd.noBacklight();
       }
-      WriteToMem(14,ShortCut); 
-      delay(1000);
+      SettingsSaved();
     }
     if (Keypress() == BACKKEY)
-    {
-      lcd.setCursor(0,1);
-      lcd.print("Not saved!      ");
-      if (MakeSounds)
-        Beep(2);
-      StayInside=false;    
-      delay(1000);
-    }
+      SettingsNotSaved();
   }  
-  Mode=1;
-  StandBy=true;
-}
-
-
-
-// --- SETUP DELAYS procedure ------------------------------------------------------------------------------------------------------------------------
-// Setup delays (Pre Shot, Shutter (how much time the shutter will stay open) and After Shot).
-
-void SetupDelays()
-{
   lcd.clear();
-  lcd.print("Setup Delays    ");
+  lcd.print("Pre Shot Delay  ");
   lcd.setCursor(0,1);
-  lcd.print("Pre Delay:      ");
-  boolean StayInside=true;
+  lcd.print("Millis:         ");
+  StayInside=true;
   int tmpPreDelay=PreDelay;
   while (StayInside)
   {
@@ -1240,25 +1180,22 @@ void SetupDelays()
       if (tmpPreDelay>3000)
         tmpPreDelay=0;
     }
-    lcd.setCursor(11,1);
+    lcd.setCursor(8,1);
     PrintDigits(tmpPreDelay,4);
     if (Keypress() == ENTERKEY)
     {
-      if (MakeSounds)
-        Beep(1);
       PreDelay=tmpPreDelay;
-      StayInside=false;
+      WriteToMem(4,PreDelay);
+      SettingsSaved();
     }
     if (Keypress() == BACKKEY)
-    {
-      if (MakeSounds)
-        Beep(2);      
-      StayInside=false;
-    }
+      SettingsNotSaved();
   } 
   StayInside=true;
+  lcd.clear();
+  lcd.print("Shutter Delay");
   lcd.setCursor(0,1);
-  lcd.print("Shutter:        ");
+  lcd.print("Millis: ");
   int tmpShutterDelay=ShutterDelay;
   while (StayInside)
   {
@@ -1274,25 +1211,22 @@ void SetupDelays()
       if (tmpShutterDelay>3000)
         tmpShutterDelay=0;
     }
-    lcd.setCursor(9,1);
+    lcd.setCursor(8,1);
     PrintDigits(tmpShutterDelay,4);
     if (Keypress() == ENTERKEY)
     {
-      if (MakeSounds)
-        Beep(1);     
       ShutterDelay=tmpShutterDelay;
-      StayInside=false;
+      WriteToMem(6,ShutterDelay);
+      SettingsSaved();
     }
     if (Keypress() == BACKKEY)
-    {
-      if (MakeSounds)
-        Beep(2);
-      StayInside=false;    
-    }
+      SettingsNotSaved();
   }
   StayInside=true;
+  lcd.clear();
+  lcd.print("After Shot Delay");
   lcd.setCursor(0,1);
-  lcd.print("After Shot:     ");
+  lcd.print("Millis: ");
   int tmpAfterDelay=AfterDelay;
   while (StayInside)
   {
@@ -1308,30 +1242,34 @@ void SetupDelays()
       if (tmpAfterDelay>3000)
         tmpAfterDelay=0;
     }
-    lcd.setCursor(12,1);
+    lcd.setCursor(8,1);
     PrintDigits(tmpAfterDelay,4);
     if (Keypress() == ENTERKEY)
     {
       AfterDelay=tmpAfterDelay;
-      StayInside=false;
-      lcd.setCursor(0,1);
-      lcd.print("Delays Saved!   ");
-      StayInside=false;
+      WriteToMem(8,AfterDelay);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+    SettingsNotSaved();
+  }
+  lcd.clear();
+  lcd.print("Setup Time?");
+  StayInside=true;
+  while (StayInside)
+  {
+    if (Keypress() == ENTERKEY)
+    {
       if (MakeSounds)
         Beep(1);
-      WriteToMem(4,PreDelay);
-      WriteToMem(6,ShutterDelay);
-      WriteToMem(8,AfterDelay);
-      delay(1000);
+      SetupTime();
+      StayInside=false;
     }
     if (Keypress() == BACKKEY)
     {
-      lcd.setCursor(0,1);
-      lcd.print("Not saved!      ");
+      StayInside=false;
       if (MakeSounds)
         Beep(2);
-      StayInside=false;    
-      delay(1000);
     }
   }
   Mode=1;
@@ -1513,10 +1451,41 @@ void FactoryReset()
 
 
 
+
 // --- SOFTWARE RESET ARDUINO procedure --------------------------------------------------------------------------------------------------------------
 // Reset Arduino.
 
 void SoftReset()
 {
   asm volatile ("  jmp 0");
+}
+
+
+
+// --- SAVE SETTINGS MSG procedure -------------------------------------------------------------------------------------------------------------------
+// Make sound and display confirm/save message.
+
+void SettingsSaved()
+{
+  lcd.setCursor(0,1);
+  lcd.print("Saved!          ");
+  StayInside=false;
+  if (MakeSounds)
+    Beep(1);
+  delay(500); 
+}
+
+
+
+// --- NOT SAVED SETTINGS MSG procedure --------------------------------------------------------------------------------------------------------------
+// Make sound and display not saved message.
+
+void SettingsNotSaved()
+{
+  lcd.setCursor(0,1);
+  lcd.print("Not Saved!      ");
+  StayInside=false;
+  if (MakeSounds)
+    Beep(2);
+  delay(500);     
 }
