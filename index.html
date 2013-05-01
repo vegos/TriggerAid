@@ -34,7 +34,16 @@
         <pre><code>                                TriggerAid
                                 ----------
                          The Camera/Flash Trigger!
+                         -------------------------
+                     http://vegos.github.io/TriggerAid
 </code></pre>
+
+<p>Hardware Required:</p>
+
+<p>Arduino (I used a Leonardo), ProtoShield, 2 Optocouplers, IR LED,
+Phototransistor, Buzzer, Tacticle Switches, Resistors, Wires, Jacks, and
+some more things that I'm sure I forgot. Oh, and -last but not least- a nice enclosure to put the
+finished project inside :)</p>
 
 <p>Libraries required:</p>
 
@@ -46,11 +55,16 @@ MemoryFree - <a href="http://playground.arduino.cc/Code/AvailableMemory">http://
 EEPROM - Arduino included Library
 multiCameraIrControl - <a href="http://sebastian.setz.name/arduino/my-libraries/multi-camera-ir-control/">http://sebastian.setz.name/arduino/my-libraries/multi-camera-ir-control/</a></p>
 
-<p>With Built-in Light Sensor, IR LED for wireless camera triggering, two (2)
-optocouplers (for separate focus &amp; shutter connectivity or 2 separate flash units).</p>
+<p>Features:</p>
 
-<p>Modes:
--&gt; Light Trigger
+<p>Can trigger a camera (with separate or no) focus &amp; shutter, or two cameras
+(with combined focus &amp; shutter), or two flashes via WIRED jack. It uses two
+(2) optocouplers (MOC3021 for up to 400V Peak).
+It can also trigger a camera (or something else?) via IR.</p>
+
+<p>Modes:</p>
+
+<p>-&gt; Light Trigger
 -&gt; Time Lapse (0-360 secs)
 -&gt; External Trigger (for connecting (digital-output) sound/light/etc modules)
 -&gt; Bulb mode (1-999 seconds)
@@ -68,7 +82,17 @@ optocouplers (for separate focus &amp; shutter connectivity or 2 separate flash 
       </footer>
     </div>
 
-    
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-40578074-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
 
   </body>
 </html>
