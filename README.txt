@@ -1,6 +1,20 @@
 
-Camera/Flash Trigger
---------------------
+                                    TriggerAid
+                                    ----------
+                             The Camera/Flash Trigger!
+			     -------------------------
+                         http://vegos.github.io/TriggerAid
+			 
+
+
+Hardware Required:
+
+Arduino (I used a Leonardo), ProtoShield, 2 Optocouplers, IR LED,
+Phototransistor, Buzzer, Tacticle Switches, Resistors, Wires, Jacks, and
+some more things that I'm sure I forgot. Oh, and -last but not least- a nice enclosure to put the
+finished project inside :)
+
+
 
 Libraries required:
 
@@ -13,19 +27,24 @@ EEPROM - Arduino included Library
 multiCameraIrControl - http://sebastian.setz.name/arduino/my-libraries/multi-camera-ir-control/
 
 
-With Built-in Light Sensor, IR LED for wireless camera triggering, two (2)
-optocouplers (for seperate focus & shutter connectivity or 2 seperate flash units).
+
+Features:
+
+Can trigger a camera (with separate or no) focus & shutter, or two cameras
+(with combined focus & shutter), or two flashes via WIRED jack. It uses two
+(2) optocouplers (MOC3021 for up to 400V Peak).
+It can also trigger a camera (or something else?) via IR.
+
 
 
 Modes:
+
 -> Light Trigger
 -> Time Lapse (0-360 secs)
 -> External Trigger (for connecting (digital-output) sound/light/etc modules)
 -> Bulb mode (1-999 seconds)
+-> Fully customizable
 
-
-
-It is menu-based, and allows to set various settings.
 
 
 
