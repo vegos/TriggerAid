@@ -42,7 +42,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "1.0.2"          // Current Version
+#define  Version         "1.1.0"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -118,7 +118,7 @@ void setup()
   setSyncProvider(RTC.get);
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print(" Camera Trigger ");
+  lcd.print("   TriggerAid   ");
   lcd.setCursor(0,1);
   lcd.print("Antonis Maglaras");
   delay(1000);
@@ -329,7 +329,7 @@ void loop()
         }
         StandBy=true;
         lcd.clear();
-        lcd.print(" Camera Trigger ");
+        lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;
       case 2:
@@ -395,7 +395,7 @@ void loop()
         }
         StandBy=true;
         lcd.clear();
-        lcd.print(" Camera Trigger ");
+        lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;
       case 3:
@@ -458,7 +458,7 @@ void loop()
         }
         StandBy=true;
         lcd.clear();
-        lcd.print(" Camera Trigger ");
+        lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;
       case 4:
@@ -524,13 +524,13 @@ void loop()
         }
         StandBy=true;
         lcd.clear();
-        lcd.print(" Camera Trigger ");
+        lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;
       case 5:
         SetupMenu();
         lcd.clear();
-        lcd.print(" Camera Trigger ");
+        lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;
       case 6:
@@ -549,14 +549,14 @@ void loop()
         while (Keypress() != BACKKEY) {}; // Delay for Back key     
         lcd.clear();
         StandBy=true;
-        lcd.print(" Camera Trigger ");
+        lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;
       case 7:
         FactoryReset();
         lcd.clear();
         StandBy=true;
-        lcd.print(" Camera Trigger ");
+        lcd.print("   TriggerAid   ");
         ResetTimeVars();
         break;       
     }
@@ -603,14 +603,14 @@ void MainMenu()
     {
       Mode=MenuSelection;
       lcd.clear();
-      lcd.print(" Camera Trigger ");
+      lcd.print("   TriggerAid   ");
       StayInside=false;
       ResetTimeVars();
       return; 
     }
   }
   lcd.clear();
-  lcd.print(" Camera Trigger ");
+  lcd.print("   TriggerAid   ");
   ResetTimeVars();
   delay(10);
 }
