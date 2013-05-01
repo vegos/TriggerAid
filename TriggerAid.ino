@@ -1,10 +1,10 @@
-// --- (New) CAMERA TRIGGER --------------------------------------------------------------------------------------------------------------------------
+// --- TriggerAid (former (new) CAMERA TRIGGER) ------------------------------------------------------------------------------------------------------
 //
 //     (c)2013, Antonis Maglaras
 //     maglaras at gmail dot com
 //     http://www.slr.gr 
 //
-//     Latest source code available at: https://github.com/vegos/NewCameraTrigger
+//     Latest source code available at: https://github.com/vegos/TriggerAid
 //     Photos etc at: http://www.slr.gr/trigger
 //
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -42,7 +42,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "1.1.0"          // Current Version
+#define  Version         "1.1.2"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
