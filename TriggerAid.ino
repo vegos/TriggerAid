@@ -4,10 +4,10 @@
 //     maglaras at gmail dot com
 //     http://www.slr.gr 
 //
-//     More information: http://vegos.github.io/TriggerAid
+//     More information: http://vegos.github.io/TriggerAid & http://github.com/vegos/TriggerAid/wiki
 //     Latest source code available at: https://github.com/vegos/TriggerAid
 //     Photos etc at: http://www.slr.gr/trigger
-//
+//     
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 //
 // Schematic
@@ -87,7 +87,7 @@ char* MenuItems[9] = { "",
                        "External Trigger",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
                        "Time Lapse      ",    // Mode 3: Time lapse. 
                        "Bulb Mode       ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
-                       "High Speed Burst",
+                       "High Speed Burst",    // Mode 5: High Speed Burst mode (For flash units, as I guess that there are no cameras so fast).
                        "Setup Parameters",    // Mode 6: Setup System (Delays, Backlight, Buzzer, Triggers, Date/Time)
                        "Information     ",    // Mode 7: Version information, memory free, etc.
                        "Factory Reset   ",    // Mode 8: Factory Reset.
@@ -1690,4 +1690,14 @@ void SettingsNotSaved()
     Beep(2);
   delay(500);     
 }
+
+
+
+
+// --- TO DO -----------------------------------------------------------------------------------------------------------------------------------------
+// New features/fixes/etc
+//
+// 1. Shot at specific days/times/whatever
+// 2. Loow the user to revert the light triggering. Triggering not only when the light reads more than ambient, but when is lowered. Useful for 
+//    breaking beams.
 
