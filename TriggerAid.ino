@@ -43,7 +43,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "1.3.1"          // Current Version
+#define  Version         "1.4.1"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -78,7 +78,11 @@ byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
                                    //                                                     flashes for example, or two cameras etc.
 
 // Olympus IR remote trigger
-Olympus Camera(IRLedPin);
+Olympus OlympusCamera(IRLedPin);
+Pentax PentaxCamera(IRLedPin);
+Nikon NikonCamera(IRLedPin);
+Sony SonyCamera(IRLedPin);
+Canon CanonCamera(IRLedPin);
 
 
 // Main Menu Strings
@@ -94,6 +98,7 @@ char* MenuItems[9] = { "",
                       };
 // Definition of global variables
 
+int CameraBrand = 1;
 int MenuSelection = 1;
 int CurrentHour = 99, CurrentMin = 99, CurrentSec = 99, CurrentDay = 99, CurrentMonth = 99, CurrentYear = 99;
 int Mode = 1, ShortCut, OptocouplersStatus;
@@ -101,7 +106,7 @@ int LightThreshold = 0, Light = 0;
 boolean StandBy = true;
 boolean WhenHigh = false;
 boolean Armed = false;
-boolean BackLight, MakeSounds, Infrared, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled;
+boolean BackLight, MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled;
 boolean StayInside = false;
 int PreDelay, ShutterDelay, AfterDelay, HighSpeedDelay, Limit, LimitTimes;
 long tmpDelay=60;
@@ -149,10 +154,11 @@ void setup()
   PreDelay=ReadFromMem(4);
   ShutterDelay=ReadFromMem(6);
   AfterDelay=ReadFromMem(8);
-  if (ReadFromMem(10)==1)
-    Infrared=true;
-  else
-    Infrared=false;
+  CameraBrand = ReadFromMem(10);
+//  if (ReadFromMem(10)==1)
+//    Infrared=true;
+//  else
+//    Infrared=false;
   if (ReadFromMem(12)==1)
     PreFocus=true;
   else
@@ -435,7 +441,9 @@ void loop()
           {
             lcd.setCursor(11,0);
             long remaining = (tmpDelay-((millis()-StartMillis)/1000));
-            PrintDigits(remaining,3);            
+            PrintDigits(remaining,3);   
+            if (PreFocus)
+              PreFocusStart();
             if ((millis()-StartMillis)>=(tmpDelay*1000))
             {
               Trigger();
@@ -1165,23 +1173,47 @@ void SetupMenu()
   lcd.print("Infrared Trigger");
   lcd.setCursor(0,1);
   StayInside=true;
-  boolean tmpInfrared=Infrared;
+  int tmpCameraBrand=CameraBrand;
   while (StayInside)
   {
-    if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
-      tmpInfrared = !(tmpInfrared);
+    if (Keypress() == LEFTKEY)
+    {
+      tmpCameraBrand-=1;
+      if (tmpCameraBrand<0)
+        tmpCameraBrand=5;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      tmpCameraBrand+=1;
+      if (tmpCameraBrand>5)
+        tmpCameraBrand=0;
+    }
     lcd.setCursor(0,1);
-    if (tmpInfrared)
-      lcd.print("Enabled ");
-    else
-      lcd.print("Disabled");
+    switch (tmpCameraBrand)
+    {
+      case 0: // None
+        lcd.print("Disabled");
+        break;
+      case 1: // Olympus
+        lcd.print("Olympus ");
+        break;
+      case 2: // Pentax
+        lcd.print("Pentax  ");
+        break;
+      case 3:
+        lcd.print("Canon   ");
+        break;
+      case 4: // Nikon
+        lcd.print("Nikon   ");
+        break;
+      case 5: // Sony
+        lcd.print("Sony    ");
+        break;
+    }
     if (Keypress() == ENTERKEY)
     {
-      Infrared=tmpInfrared;
-      if (Infrared)
-        WriteToMem(10,1);
-      else
-        WriteToMem(10,0);
+      CameraBrand=tmpCameraBrand;
+      WriteToMem(10,CameraBrand);
       SettingsSaved();
     }
     if (Keypress() == BACKKEY)
@@ -1354,12 +1386,12 @@ void SetupMenu()
     {
       ShortCutTemp-=1;
       if (ShortCutTemp<1)
-        ShortCutTemp=4;
+        ShortCutTemp=5;
     }
     if (Keypress() == RIGHTKEY)
     {
       ShortCutTemp+=1;
-      if (ShortCutTemp>4)
+      if (ShortCutTemp>5)
         ShortCutTemp=1;
     }
     lcd.setCursor(0,1);
@@ -1519,8 +1551,27 @@ void Trigger()
       digitalWrite(Optocoupler1Pin, HIGH);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
-  if (Infrared)
-    Camera.shutterNow();
+  if (CameraBrand != 0)
+  {
+    switch (CameraBrand)
+    {
+      case 1: // Olympus
+        OlympusCamera.shutterNow();
+        break;
+      case 2: // Pentax
+        PentaxCamera.shutterNow();
+        break;
+      case 3: // Canon
+        CanonCamera.shutterNow();
+        break;
+      case 4: // Nikon
+        NikonCamera.shutterNow();
+        break;
+      case 5: // Sony
+        SonyCamera.shutterNow();
+        break;
+    }
+  }
   delay(ShutterDelay);  
   if (Optocoupler1Enabled)
     digitalWrite(Optocoupler1Pin, LOW);
