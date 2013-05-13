@@ -43,7 +43,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "1.4.1"          // Current Version
+#define  Version         "1.7.1"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -106,7 +106,7 @@ int LightThreshold = 0, Light = 0;
 boolean StandBy = true;
 boolean WhenHigh = false;
 boolean Armed = false;
-boolean BackLight, MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled;
+boolean BackLight, MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltInLightTrigger;
 boolean StayInside = false;
 int PreDelay, ShutterDelay, AfterDelay, HighSpeedDelay, Limit, LimitTimes;
 long tmpDelay=60;
@@ -155,10 +155,6 @@ void setup()
   ShutterDelay=ReadFromMem(6);
   AfterDelay=ReadFromMem(8);
   CameraBrand = ReadFromMem(10);
-//  if (ReadFromMem(10)==1)
-//    Infrared=true;
-//  else
-//    Infrared=false;
   if (ReadFromMem(12)==1)
     PreFocus=true;
   else
@@ -167,6 +163,10 @@ void setup()
   OptocouplersStatus=ReadFromMem(16);
   HighSpeedDelay=ReadFromMem(18);
   LimitTimes=ReadFromMem(20);
+  if (ReadFromMem(22)==1)
+    BuiltInLightTrigger=true;
+  else
+    BuiltInLightTrigger=false;
   switch (OptocouplersStatus)
   {
     case 0:
@@ -264,13 +264,25 @@ void loop()
     {
       case 1:
         lcd.clear();
-        lcd.print("Light:          ");
+        lcd.print("Light:         ");
         lcd.setCursor(0,1);
-        lcd.print("Threshold:      ");
+        lcd.print("Threshold:     ");
         Light = map(analogRead(LightSensorPin),0,1023,0,100);
-        LightThreshold = Light+10;
-        if (LightThreshold>100)
-          LightThreshold = 100;
+        lcd.setCursor(15,1);
+        if (BuiltInLightTrigger)
+        {
+          lcd.print("H");
+          LightThreshold = Light+10;
+          if (LightThreshold>100)
+            LightThreshold=100;
+        }
+        else
+        {
+          lcd.print("L");
+          LightThreshold = Light-10;
+          if (LightThreshold<1)
+            LightThreshold=1;
+        }
         Armed=false;
         lcd.setCursor(15,0);
         lcd.write(2);
@@ -281,8 +293,8 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
-              lcd.clear();
-              lcd.print("Light Trigger   ");
+              lcd.setCursor(0,0);
+              lcd.print("Light Trigger  ");
               lcd.setCursor(0,1);
               lcd.print("Ready!          ");
               lcd.setCursor(15,0);
@@ -292,7 +304,14 @@ void loop()
               while (!Backkey())
               {
                 Light = map(analogRead(LightSensorPin),0,1023,0,100);
-                if (Light>LightThreshold)
+                if ((Light>LightThreshold) && (BuiltInLightTrigger))
+                {
+                  TriggerMillis=millis();
+                  Trigger();
+                  if (PreFocus)
+                    PreFocusStart();
+                }
+                if ((Light<LightThreshold) && !(BuiltInLightTrigger))
                 {
                   TriggerMillis=millis();
                   Trigger();
@@ -303,20 +322,30 @@ void loop()
               if (PreFocus)
                 PreFocusStop();
               Armed=false;
-              lcd.clear();
-              lcd.print("Light:          ");
+              lcd.setCursor(0,0);
+              lcd.print("Light:         ");
               lcd.setCursor(0,1);
-              lcd.print("Threshold:      ");
+              lcd.print("Threshold:     ");
+              lcd.setCursor(15,1);
+              if (BuiltInLightTrigger)
+                lcd.print("H");
+              else
+                lcd.print("L");              
               lcd.setCursor(15,0);
               lcd.write(2);              
               delay(100);
             }
             else
             {
-              lcd.clear();
-              lcd.print("Light:          ");
+              lcd.setCursor(0,0);
+              lcd.print("Light:         ");
               lcd.setCursor(0,1);
-              lcd.print("Threshold:      ");
+              lcd.print("Threshold:     ");
+              lcd.setCursor(15,1);
+              if (BuiltInLightTrigger)
+                lcd.print("H");
+              else
+                lcd.print("L");                            
               lcd.setCursor(15,0);
               lcd.write(2);               
             }
@@ -1219,6 +1248,33 @@ void SetupMenu()
     if (Keypress() == BACKKEY)
       SettingsNotSaved();
   }
+  StayInside=true;
+  lcd.clear();
+  lcd.print("Light Trigger  ");
+  lcd.setCursor(0,1);
+  lcd.print("Trigger on     ");
+  boolean tmpBuiltInLightTrigger=BuiltInLightTrigger;
+  while (StayInside)
+  {
+    lcd.setCursor(11,1);
+    if (tmpBuiltInLightTrigger)
+      lcd.print("HIGH");
+    else
+      lcd.print("LOW ");
+    if ((Keypress() == LEFTKEY) != (Keypress() == RIGHTKEY))
+      tmpBuiltInLightTrigger = !(tmpBuiltInLightTrigger);
+    if (Keypress() == ENTERKEY)
+    {
+      BuiltInLightTrigger=tmpBuiltInLightTrigger;
+      if (BuiltInLightTrigger)
+        WriteToMem(22,1);
+      else
+        WriteToMem(22,0);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+      SettingsNotSaved();
+  }
   lcd.clear();
   lcd.print("Pre Shot Delay  ");
   lcd.setCursor(0,1);
@@ -1678,6 +1734,9 @@ void FactoryReset()
           WriteToMem(12,1);  
           WriteToMem(14,1);
           WriteToMem(16,1);
+          WriteToMem(18,5);
+          WriteToMem(20,10);
+          WriteToMem(22,1);
           Beep(3);
           delay(1000);
           SoftReset();
@@ -1749,6 +1808,4 @@ void SettingsNotSaved()
 // New features/fixes/etc
 //
 // 1. Shot at specific days/times/whatever
-// 2. Loow the user to revert the light triggering. Triggering not only when the light reads more than ambient, but when is lowered. Useful for 
-//    breaking beams.
 

@@ -39,7 +39,7 @@ Supported cameras: Olympus, Pentax, Canon, Nikon, Sony.
 
 Modes:
 
--> Light Trigger.
+-> Light Trigger. It can be programmed to trigger on HIGH or LOW.
 -> Time Lapse (0-360 secs).
 -> External Trigger (for connecting (digital-output) sound/light/etc modules).
 -> Bulb mode (1-999 seconds).
