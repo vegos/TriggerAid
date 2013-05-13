@@ -32,7 +32,8 @@ Features:
 Can trigger a camera (with separate or no) focus & shutter, or two cameras
 (with combined focus & shutter), or two flashes via WIRED jack. It uses two
 (2) optocouplers (MOC3021 for up to 400V Peak).
-It can also trigger a camera (or something else?) via IR.
+It can also trigger a camera (or something else?) via IR. 
+Supported cameras: Olympus, Pentax, Canon, Nikon, Sony.
 
 
 
