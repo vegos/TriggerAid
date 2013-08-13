@@ -43,7 +43,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "1.7.1"          // Current Version
+#define  Version         "1.8.0"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -89,7 +89,7 @@ Canon CanonCamera(IRLedPin);
 char* MenuItems[9] = { "",
                        "Light Trigger   ",    // Mode 1: Built-in light trigger
                        "External Trigger",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
-                       "Time Lapse      ",    // Mode 3: Time lapse. 
+                       "Time Lapse      ",    // Mode 3: Time lapse. Exposure is available on setup menu (for use with Bulb mode, only on wired triggers).
                        "Bulb Mode       ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
                        "High Speed Burst",    // Mode 5: High Speed Burst mode (For flash units, as I guess that there are no cameras so fast).
                        "Setup Parameters",    // Mode 6: Setup System (Delays, Backlight, Buzzer, Triggers, Date/Time)
@@ -108,7 +108,7 @@ boolean WhenHigh = false;
 boolean Armed = false;
 boolean BackLight, MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltInLightTrigger;
 boolean StayInside = false;
-int PreDelay, ShutterDelay, AfterDelay, HighSpeedDelay, Limit, LimitTimes;
+int PreDelay, ShutterDelay, AfterDelay, HighSpeedDelay, Limit, LimitTimes, TimeLapseExposure;
 long tmpDelay=60;
 long StartMillis, tmpMillis, TriggerMillis;
 
@@ -167,6 +167,7 @@ void setup()
     BuiltInLightTrigger=true;
   else
     BuiltInLightTrigger=false;
+  TimeLapseExposure=ReadFromMem(24);
   switch (OptocouplersStatus)
   {
     case 0:
@@ -475,7 +476,7 @@ void loop()
               PreFocusStart();
             if ((millis()-StartMillis)>=(tmpDelay*1000))
             {
-              Trigger();
+              TriggerTimeLapse();
               StartMillis=millis();
             }
           }
@@ -1370,6 +1371,37 @@ void SetupMenu()
   }
   StayInside=true;
   lcd.clear();
+  lcd.print("Timelapse Exposr");
+  lcd.setCursor(0,1);
+  lcd.print("Seconds: ");
+  int tmpTimeLapseExposure=TimeLapseExposure;
+  while (StayInside)
+  {
+    if (Keypress() == LEFTKEY)
+    {
+      tmpTimeLapseExposure-=1;
+      if (tmpTimeLapseExposure<0)
+        tmpTimeLapseExposure=300;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      tmpTimeLapseExposure+=1;
+      if (tmpTimeLapseExposure>300)
+        tmpTimeLapseExposure=0;
+    }
+    lcd.setCursor(9,1);
+    PrintDigits(tmpTimeLapseExposure,3);
+    if (Keypress() == ENTERKEY)
+    {
+      TimeLapseExposure=tmpTimeLapseExposure;
+      WriteToMem(24,TimeLapseExposure);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+    SettingsNotSaved();
+  }
+  StayInside=true;
+  lcd.clear();
   lcd.print("HighSpeed Delay ");
   lcd.setCursor(0,1);
   lcd.print("Millis: ");
@@ -1640,6 +1672,51 @@ void Trigger()
 
 
 
+// --- TRIGGER TimeLapse -----------------------------------------------------------------------------------------------------------------------------
+// Trigger the camera.
+
+void TriggerTimeLapse()
+{
+  if (PreDelay!=0)
+    delay(PreDelay);
+  if (!PreFocus)
+    if (Optocoupler1Enabled)
+      digitalWrite(Optocoupler1Pin, HIGH);
+  if (Optocoupler2Enabled)
+    digitalWrite(Optocoupler2Pin, HIGH);
+  if (CameraBrand != 0)
+  {
+    switch (CameraBrand)
+    {
+      case 1: // Olympus
+        OlympusCamera.shutterNow();
+        break;
+      case 2: // Pentax
+        PentaxCamera.shutterNow();
+        break;
+      case 3: // Canon
+        CanonCamera.shutterNow();
+        break;
+      case 4: // Nikon
+        NikonCamera.shutterNow();
+        break;
+      case 5: // Sony
+        SonyCamera.shutterNow();
+        break;
+    }
+  }
+  delay(TimeLapseExposure*1000);  
+  if (Optocoupler1Enabled)
+    digitalWrite(Optocoupler1Pin, LOW);
+  if (Optocoupler2Enabled)
+    digitalWrite(Optocoupler2Pin, LOW);
+  delay(AfterDelay);
+  if (MakeSounds)
+    Beep(3);
+}
+
+
+
 // --- HIGH SPEED TRIGGER procedure ------------------------------------------------------------------------------------------------------------------
 // High-Speed Trigger (for flashes). Can trigger up to 50 times, on every millisecond. Works best with high speed flash units (due to recharging).
 
@@ -1737,6 +1814,7 @@ void FactoryReset()
           WriteToMem(18,5);
           WriteToMem(20,10);
           WriteToMem(22,1);
+          WriteToMem(24,60);
           Beep(3);
           delay(1000);
           SoftReset();
