@@ -30,7 +30,7 @@ multiCameraIrControl - http://sebastian.setz.name/arduino/my-libraries/multi-cam
 Features:
 
 Can trigger a camera (with separate or no) focus & shutter, or two cameras
-(with combined focus & shutter), or two flashes via WIRED jack. It uses two
+(with combined focus & shutter), or two flashes via WIRED jack. kIt uses two
 (2) optocouplers (MOC3021 for up to 400V Peak).
 It can also trigger a camera (or something else?) via IR. 
 Supported cameras: Olympus, Pentax, Canon, Nikon, Sony.
@@ -42,6 +42,7 @@ Modes:
 -> Light Trigger. It can be programmed to trigger on HIGH or LOW.
 -> Time Lapse (0-360 secs).
 -> External Trigger (for connecting (digital-output) sound/light/etc modules).
+   Exposure is specified on setup menu (for use with Bulb mode).
 -> Bulb mode (1-999 seconds).
 -> High Speed Flash Triggering (1-100ms, for 1-50 times).
 -> Fully customizable / Menu driven.
