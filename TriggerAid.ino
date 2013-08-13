@@ -43,7 +43,7 @@
 
 LiquidCrystal_I2C lcd(0x20,16,2);
 
-#define  Version         "1.8.0"          // Current Version
+#define  Version         "1.8.1"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -1710,7 +1710,6 @@ void TriggerTimeLapse()
     digitalWrite(Optocoupler1Pin, LOW);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, LOW);
-  delay(AfterDelay);
   if (MakeSounds)
     Beep(3);
 }
