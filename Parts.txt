@@ -1,0 +1,26 @@
+Parts list:
+
+1 x ATmega328
+1 x 28pin IC Socket
+1 x 7805 Volage Regulator
+2 x MOC3021 Optocouplers/Optoisolators
+2 x 6pin IC Sockets
+1 x 16MHz Crystal
+1 x HD44780 LCD Display (2x16)
+2 x 220uF Electrolytic Capacitors (16V)
+2 x 22uF Capacitors
+1 x 10kΩ Trimmer
+3 x 10kΩ Resistors
+1 x 150Ω Resistor
+2 x 220Ω Resistors
+2 x 100kΩ Resistors
+6 x Tacticle Switches / Push Buttons
+2 x TRS Stereo Female PCB Jacks (5 pins)
+1 x DC PCB Jack
+2 x Double DIP Switches (or 4 x Single DIP Switches)
+1 x 5mm IR LED 
+1 x 5mm Photo Diode 
+1 x 5V Buzzer
+
+You will also need a FTDI cable (or an Arduino) for programming the ATmega328.
+
