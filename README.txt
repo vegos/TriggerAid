@@ -3,7 +3,19 @@
                              The Camera/Flash Trigger!
 			     -------------------------
                          http://vegos.github.io/TriggerAid
-			 
+
+		
+
+NOTE: 
+
+My new version is a custom board with all the components installed on it.
+The principle is the same, but there are minor changes on pin layout, functions, etc.
+The PCB is a simple Arduino board with the LCD (2x16) and the basic sensors, LEDs 
+and buttons installed. 
+It lacks of RTC and have one more dedicated button (Shoot), also input for another 
+one external sensor (analog reading). It also have some DIP Switches for enabling/disabling 
+some pull down resistors.
+
 
 
 Hardware Required:
