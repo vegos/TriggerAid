@@ -42,7 +42,7 @@ byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
 #define  IRLedPin          10      // For IR transmitting
 #define  LightSensorPin    A1      // Built-in Light trigger
 
-#define  Input1Pin         A5      // For future use / analog senors?
+#define  LEDPin            A5      // LED Pin
 #define  ExternalPin        8      // For connecting external (digital) sensors
 #define  BuzzerPin         A0      // Buzzer -- I used a PWM pin. Maybe in next version will play some music :)
 
@@ -57,7 +57,7 @@ byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
                                    //                                                     With that setup, it's possible to trigger two (2) external
                                    //                                                     flashes for example, or two cameras etc.
 
-// Olympus IR remote trigger
+//Olympus IR remote trigger
 Olympus OlympusCamera(IRLedPin);
 Pentax PentaxCamera(IRLedPin);
 Nikon NikonCamera(IRLedPin);
@@ -109,8 +109,6 @@ void setup()
   lcd.setCursor(0,1);
   lcd.print("Antonis Maglaras");
   delay(1000);
-  lcd.setCursor(0,1);
-  lcd.print("    WELCOME!    ");
   // Setup pins
   pinMode(RightButton, INPUT_PULLUP);  
   pinMode(BackButton, INPUT_PULLUP);
@@ -121,6 +119,7 @@ void setup()
   pinMode(ExternalPin, INPUT);
   pinMode(Optocoupler1Pin, OUTPUT);
   pinMode(Optocoupler2Pin, OUTPUT);
+  pinMode(LEDPin, OUTPUT);
   // Read settings from EEPROM
   if (ReadFromMem(0)==1)
     MakeSounds=true;
@@ -129,7 +128,7 @@ void setup()
   PreDelay=ReadFromMem(4);
   ShutterDelay=ReadFromMem(6);
   AfterDelay=ReadFromMem(8);
-  CameraBrand = ReadFromMem(10);
+  CameraBrand = ReadFromMem(10);  
   if (ReadFromMem(12)==1)
     PreFocus=true;
   else
@@ -167,6 +166,8 @@ void setup()
   StandBy=true;
   if (MakeSounds)
     Beep(1);
+  lcd.setCursor(0,1);
+  lcd.print("Ready!          ");    
 }
 
 
@@ -179,7 +180,7 @@ void loop()
 {
   if (StandBy)
   {
-    // On LEFT key press, start bulb shooting
+    // On SHOOT key press, start bulb shooting
     if (Keypress() == SHOOTKEY)
     {
       lcd.setCursor(0,1);
@@ -188,7 +189,7 @@ void loop()
       while (Keypress() == SHOOTKEY);
       StopBulb();
       lcd.setCursor(0,1);
-      lcd.print("                ");
+      lcd.print("Ready!          ");    
     }
     // On BACK key pressed for 3 seconds, go to shortcut
     if (Keypress() == BACKKEY)
@@ -256,7 +257,7 @@ void loop()
               lcd.setCursor(0,0);
               lcd.print("Light Trigger  ");
               lcd.setCursor(0,1);
-              lcd.print("Ready!          ");
+              lcd.print("Enabled!        ");
               lcd.setCursor(15,0);
               lcd.write(1);
               if (PreFocus)
@@ -331,6 +332,8 @@ void loop()
         StandBy=true;
         lcd.clear();
         lcd.print("   TriggerAid   ");
+        lcd.setCursor(0,1);
+        lcd.print("Ready!          ");    
         break;
       case 2:
         lcd.clear();
@@ -348,7 +351,7 @@ void loop()
             if (Armed)
             {
               lcd.setCursor(0,1);
-              lcd.print("Ready!          ");
+              lcd.print("Enabled!        ");
               lcd.setCursor(15,0);
               lcd.write(1);
               if (PreFocus)
@@ -396,6 +399,8 @@ void loop()
         StandBy=true;
         lcd.clear();
         lcd.print("   TriggerAid   ");
+        lcd.setCursor(0,1);
+        lcd.print("Ready!          ");        
         break;
       case 3:
         lcd.clear();
@@ -460,6 +465,8 @@ void loop()
         StandBy=true;
         lcd.clear();
         lcd.print("   TriggerAid   ");
+        lcd.setCursor(0,1);
+        lcd.print("Ready!          ");        
         break;
       case 4:
         lcd.clear();
@@ -525,6 +532,8 @@ void loop()
         StandBy=true;
         lcd.clear();
         lcd.print("   TriggerAid   ");
+        lcd.setCursor(0,1);
+        lcd.print("Ready!          ");    
         break;
       case 5:
         lcd.clear();
@@ -604,11 +613,15 @@ void loop()
         StandBy=true;
         lcd.clear();
         lcd.print("   TriggerAid   ");
+        lcd.setCursor(0,1);
+        lcd.print("Ready!          ");    
         break;
       case 6:
         SetupMenu();
         lcd.clear();
         lcd.print("   TriggerAid   ");
+        lcd.setCursor(0,1);
+        lcd.print("Ready!          ");    
         break;
       case 7:
         lcd.clear();
@@ -627,12 +640,16 @@ void loop()
         lcd.clear();
         StandBy=true;
         lcd.print("   TriggerAid   ");
+        lcd.setCursor(0,1);
+        lcd.print("Ready!          ");        
         break;
       case 8:
         FactoryReset();
         lcd.clear();
         StandBy=true;
         lcd.print("   TriggerAid   ");
+        lcd.setCursor(0,1);
+        lcd.print("Ready!          ");        
         break;       
     }
   }  
@@ -679,12 +696,16 @@ void MainMenu()
       Mode=MenuSelection;
       lcd.clear();
       lcd.print("   TriggerAid   ");
+      lcd.setCursor(0,1);
+      lcd.print("Ready!          ");    
       StayInside=false;
       return; 
     }
   }
   lcd.clear();
   lcd.print("   TriggerAid   ");
+  lcd.setCursor(0,1);
+  lcd.print("Ready!          ");        
   delay(10);
 }
 
@@ -1250,6 +1271,7 @@ void Trigger()
       digitalWrite(Optocoupler1Pin, HIGH);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
+  digitalWrite(LEDPin, HIGH);
   if (CameraBrand != 0)
   {
     switch (CameraBrand)
@@ -1279,6 +1301,7 @@ void Trigger()
   delay(AfterDelay);
   if (MakeSounds)
     Beep(3);
+  digitalWrite(LEDPin, LOW);    
 }
 
 
@@ -1295,6 +1318,7 @@ void TriggerTimeLapse()
       digitalWrite(Optocoupler1Pin, HIGH);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
+  digitalWrite(LEDPin, HIGH);    
   if (CameraBrand != 0)
   {
     switch (CameraBrand)
@@ -1324,6 +1348,7 @@ void TriggerTimeLapse()
     digitalWrite(Optocoupler2Pin, LOW);
   if (MakeSounds)
     Beep(3);
+  digitalWrite(LEDPin, LOW);    
 }
 
 
@@ -1334,11 +1359,13 @@ void TriggerTimeLapse()
 
 void HighSpeedTrigger()
 {
+  digitalWrite(LEDPin, HIGH);
   digitalWrite(Optocoupler1Pin, HIGH);
   digitalWrite(Optocoupler2Pin, HIGH);
   delay(HighSpeedDelay);
   digitalWrite(Optocoupler1Pin, LOW);
   digitalWrite(Optocoupler2Pin, LOW);
+  digitalWrite(LEDPin, LOW);  
 }
 
 
@@ -1348,8 +1375,31 @@ void HighSpeedTrigger()
 
 void StartBulb()
 {
+//  OlympusCamera.shutterNow();
   digitalWrite(Optocoupler1Pin, HIGH);
   digitalWrite(Optocoupler2Pin, HIGH);
+  digitalWrite(LEDPin, HIGH);
+  if (CameraBrand != 0)
+  {
+    switch (CameraBrand)
+    {
+      case 1: // Olympus
+        OlympusCamera.shutterNow();
+        break;
+      case 2: // Pentax
+        PentaxCamera.shutterNow();
+        break;
+      case 3: // Canon
+        CanonCamera.shutterNow();
+        break;
+      case 4: // Nikon
+        NikonCamera.shutterNow();
+        break;
+      case 5: // Sony
+        SonyCamera.shutterNow();
+        break;
+    }
+  }  
   if (MakeSounds)
     Beep(1);
 }
@@ -1363,6 +1413,7 @@ void StopBulb()
 {
   digitalWrite(Optocoupler1Pin, LOW);
   digitalWrite(Optocoupler2Pin, LOW);
+  digitalWrite(LEDPin, LOW);
   delay(AfterDelay);
   if (MakeSounds)
     Beep(2);
@@ -1488,12 +1539,3 @@ void SettingsNotSaved()
     Beep(2);
   delay(500);     
 }
-
-
-
-
-// --- TO DO -----------------------------------------------------------------------------------------------------------------------------------------
-// New features/fixes/etc
-//
-// 1. Shot at specific days/times/whatever
-
