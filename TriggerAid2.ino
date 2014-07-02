@@ -1,12 +1,12 @@
-// --- TriggerAid (former (new) CAMERA TRIGGER) ------------------------------------------------------------------------------------------------------
+// --- TriggerAid v2 ---------------------------------------------------------------------------------------------------------------------------------
 //
-//     (c)2013, Antonis Maglaras
+//     (c)2013-2014, Antonis Maglaras
 //     maglaras at gmail dot com
 //     http://www.slr.gr 
 //
-//     More information: http://vegos.github.io/TriggerAid & http://github.com/vegos/TriggerAid/wiki
+//     More information: https://www.facebook.com/TheTriggerAid -- http://vegos.github.io/TriggerAid -- http://github.com/vegos/TriggerAid/wiki
 //     Latest source code available at: https://github.com/vegos/TriggerAid
-//     Photos etc at: http://www.slr.gr/trigger
+//     Photos etc at: http://www.facebook.com/TheTriggerAid & http://www.slr.gr/trigger
 //     
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-#define  Version         "2.0.0"          // Current Version
+#define  Version         "2.1.1"          // Current Version
 
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -42,8 +42,8 @@ byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
 #define  IRLedPin          10      // For IR transmitting
 #define  LightSensorPin    A1      // Built-in Light trigger
 
-#define  LEDPin            A5      // LED Pin
-#define  ExternalPin        8      // For connecting external (digital) sensors
+//#define  LEDPin            A5      // LED Pin
+#define  ExternalPin        8      // External (digital) sensor pin
 #define  BuzzerPin         A0      // Buzzer -- I used a PWM pin. Maybe in next version will play some music :)
 
 #define  RightButton       A3      // Button Right Pin
@@ -69,7 +69,7 @@ Canon CanonCamera(IRLedPin);
 char* MenuItems[9] = { "",
                        "Light Trigger   ",    // Mode 1: Built-in light trigger
                        "External Trigger",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
-                       "Time Lapse      ",    // Mode 3: Time lapse. Exposure is available on setup menu (for use with Bulb mode, only on wired triggers).
+                       "Time-Lapse      ",    // Mode 3: Time lapse. Exposure is available on setup menu (for use with Bulb mode, only on wired triggers).
                        "Bulb Mode       ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
                        "High Speed Burst",    // Mode 5: High Speed Burst mode (For flash units, as I guess that there are no cameras so fast).
                        "Setup Parameters",    // Mode 6: Setup System (Delays, Buzzer, Triggers)
@@ -79,17 +79,17 @@ char* MenuItems[9] = { "",
 
 
 // Definition of global variables
-int CameraBrand = 1;
-int MenuSelection = 1;
-int Mode = 1, ShortCut, OptocouplersStatus;
-int LightThreshold = 0, Light = 0;
+byte CameraBrand = 1;
+byte MenuSelection = 1;
+byte Mode = 1, ShortCut, OptocouplersStatus;
+byte LightThreshold = 0, Light = 0;
 boolean StandBy = true;
-boolean WhenHigh = false;
 boolean Armed = false;
-boolean MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltInLightTrigger;
+boolean MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltInLightTriggerHorL, ExtTrigger;
 boolean StayInside = false;
-int PreDelay, ShutterDelay, AfterDelay, HighSpeedDelay, Limit, LimitTimes, TimeLapseExposure;
-long tmpDelay=60;
+byte HighSpeedDelay, LimitTimes;
+int PreDelay, ShutterDelay, AfterDelay, Limit, TimeLapseExposure, TimeLapseInterval;
+int tmpDelay;
 long StartMillis, tmpMillis, TriggerMillis;
 
 
@@ -138,25 +138,30 @@ void setup()
   HighSpeedDelay=ReadFromMem(18);
   LimitTimes=ReadFromMem(20);
   if (ReadFromMem(22)==1)
-    BuiltInLightTrigger=true;
+    BuiltInLightTriggerHorL=true;
   else
-    BuiltInLightTrigger=false;
+    BuiltInLightTriggerHorL=false;
+  if (ReadFromMem(26)==1)
+    ExtTrigger=true;
+  else
+    ExtTrigger=false;
   TimeLapseExposure=ReadFromMem(24);
+  TimeLapseInterval=ReadFromMem(28);
   switch (OptocouplersStatus)
   {
-    case 0:
+    case 1:
       Optocoupler1Enabled=true;
       Optocoupler2Enabled=true;
       break;
-    case 1:
+    case 2:
       Optocoupler1Enabled=true;
       Optocoupler2Enabled=false;
       break;
-    case 2:
+    case 3:
       Optocoupler1Enabled=false;
       Optocoupler2Enabled=true;
       break;
-    case 3:
+    case 4:
       Optocoupler1Enabled=false;
       Optocoupler2Enabled=false;
       break;
@@ -228,21 +233,21 @@ void loop()
         lcd.print("Light:         ");
         lcd.setCursor(0,1);
         lcd.print("Threshold:     ");
-        Light = map(analogRead(LightSensorPin),0,1023,0,100);
+        Light = map(analogRead(LightSensorPin),0,1023,1,100);
         lcd.setCursor(15,1);
-        if (BuiltInLightTrigger)
+        if (BuiltInLightTriggerHorL)
         {
           lcd.print("H");
           LightThreshold = Light+10;
           if (LightThreshold>100)
-            LightThreshold=100;
+            LightThreshold=1;
         }
         else
         {
           lcd.print("L");
           LightThreshold = Light-10;
           if (LightThreshold<1)
-            LightThreshold=1;
+            LightThreshold=100;
         }
         Armed=false;
         lcd.setCursor(15,0);
@@ -257,22 +262,22 @@ void loop()
               lcd.setCursor(0,0);
               lcd.print("Light Trigger  ");
               lcd.setCursor(0,1);
-              lcd.print("Enabled!        ");
+              lcd.print("Active!        ");
               lcd.setCursor(15,0);
               lcd.write(1);
               if (PreFocus)
                 PreFocusStart();
               while (!Backkey())
               {
-                Light = map(analogRead(LightSensorPin),0,1023,0,100);
-                if ((Light>LightThreshold) && (BuiltInLightTrigger))
+                Light = map(analogRead(LightSensorPin),0,1023,1,100);
+                if ((Light>LightThreshold) && (BuiltInLightTriggerHorL))
                 {
                   TriggerMillis=millis();
                   Trigger();
                   if (PreFocus)
                     PreFocusStart();
                 }
-                if ((Light<LightThreshold) && !(BuiltInLightTrigger))
+                if ((Light<LightThreshold) && !(BuiltInLightTriggerHorL))
                 {
                   TriggerMillis=millis();
                   Trigger();
@@ -288,7 +293,7 @@ void loop()
               lcd.setCursor(0,1);
               lcd.print("Threshold:     ");
               lcd.setCursor(15,1);
-              if (BuiltInLightTrigger)
+              if (BuiltInLightTriggerHorL)
                 lcd.print("H");
               else
                 lcd.print("L");              
@@ -303,7 +308,7 @@ void loop()
               lcd.setCursor(0,1);
               lcd.print("Threshold:     ");
               lcd.setCursor(15,1);
-              if (BuiltInLightTrigger)
+              if (BuiltInLightTriggerHorL)
                 lcd.print("H");
               else
                 lcd.print("L");                            
@@ -311,7 +316,7 @@ void loop()
               lcd.write(2);               
             }
           }
-          Light = map(analogRead(LightSensorPin),0,1023,0,100);
+          Light = map(analogRead(LightSensorPin),0,1023,1,100);
           lcd.setCursor(7,0);
           PrintDigits(Light,3);
           lcd.setCursor(11,1);
@@ -320,13 +325,13 @@ void loop()
           {
             LightThreshold+=1;
             if (LightThreshold>100)
-              LightThreshold=100;
+              LightThreshold=1;
           }
           if (Keypress() == LEFTKEY)
           {
             LightThreshold-=1;
-            if (LightThreshold<0)
-              LightThreshold=0;
+            if (LightThreshold<1)
+              LightThreshold=100;
           }
         }
         StandBy=true;
@@ -351,20 +356,20 @@ void loop()
             if (Armed)
             {
               lcd.setCursor(0,1);
-              lcd.print("Enabled!        ");
+              lcd.print("Active!        ");
               lcd.setCursor(15,0);
               lcd.write(1);
               if (PreFocus)
                 PreFocusStart();
               while (!Backkey())
               {
-                if ((WhenHigh) && (digitalRead(ExternalPin) == HIGH))
+                if ((ExtTrigger) && (digitalRead(ExternalPin) == HIGH))
                 {
                   Trigger();
                   if (PreFocus)
                     PreFocusStart();
                 }
-                if ((!WhenHigh) && (digitalRead(ExternalPin) == LOW))
+                if ((!ExtTrigger) && (digitalRead(ExternalPin) == LOW))
                 {
                   Trigger();
                   if (PreFocus)
@@ -390,8 +395,8 @@ void loop()
           }
           lcd.setCursor(11,1);
           if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
-            WhenHigh=!(WhenHigh);
-          if (WhenHigh)
+            ExtTrigger=!(ExtTrigger);
+          if (ExtTrigger)
             lcd.print("HIGH");
           else
             lcd.print("LOW ");
@@ -406,8 +411,10 @@ void loop()
         lcd.clear();
         lcd.print("TimeLapse (   ) ");
         lcd.setCursor(0,1);
-        lcd.print("Interval: 060\"   ");
-        tmpDelay=60;
+        lcd.print("Interval:    \"   ");
+        tmpDelay=TimeLapseInterval;
+        lcd.setCursor(10,1);
+        PrintDigits(tmpDelay,3);
         StartMillis=millis();
         lcd.setCursor(15,0);
         lcd.write(2);
@@ -431,12 +438,14 @@ void loop()
           }
           if (Armed)
           {
-            lcd.setCursor(11,0);
             long remaining = (tmpDelay-((millis()-StartMillis)/1000));
+            lcd.setCursor(11,0);
+            if (remaining < 0)
+              remaining = 0;
             PrintDigits(remaining,3);   
             if (PreFocus)
               PreFocusStart();
-            if ((millis()-StartMillis)>=(tmpDelay*1000))
+            if (remaining <= 1)
             {
               TriggerTimeLapse();
               StartMillis=millis();
@@ -451,13 +460,13 @@ void loop()
           {
             tmpDelay-=1;
             if (tmpDelay<1)
-              tmpDelay=1;
+              tmpDelay=360;
           }
           if (Keypress() == RIGHTKEY)
           {
             tmpDelay+=1;
             if (tmpDelay>360)
-              tmpDelay=360;
+              tmpDelay=1;
           }
           lcd.setCursor(10,1);
           PrintDigits(tmpDelay,3);
@@ -518,13 +527,13 @@ void loop()
           {
             tmpDelay-=1;
             if (tmpDelay<1)
-              tmpDelay=1;
+              tmpDelay=360;
           }
           if (Keypress() == RIGHTKEY)
           {
             tmpDelay+=1;
             if (tmpDelay>360)
-              tmpDelay=360;
+              tmpDelay=1;
           }
           lcd.setCursor(6,1);
           PrintDigits(tmpDelay,3);
@@ -540,11 +549,11 @@ void loop()
         lcd.print("HighSpeed Burst ");
         lcd.setCursor(0,1);
         lcd.print("Interval:     ms");
-        tmpDelay=50;
+        tmpDelay=HighSpeedDelay;
         lcd.setCursor(15,0);
         lcd.write(2);
         Armed=false;  
-        Limit = 1;
+        Limit = LimitTimes;
         while (Keypress() != BACKKEY)
         {
           if (Keypress() == ENTERKEY)
@@ -558,7 +567,6 @@ void loop()
               lcd.print("Shooting!       ");
               StartMillis=millis();
               StayInside=true;
-              Limit=1;
               while (StayInside)
               {
                 if (millis()-StartMillis>tmpDelay)
@@ -599,13 +607,13 @@ void loop()
           {
             tmpDelay-=1;
             if (tmpDelay<1)
-              tmpDelay=1;
+              tmpDelay=500;
           }
           if (Keypress() == RIGHTKEY)
           {
             tmpDelay+=1;
             if (tmpDelay>500)
-              tmpDelay=500;
+              tmpDelay=1;
           }
           lcd.setCursor(10,1);
           PrintDigits(tmpDelay,3);         
@@ -632,7 +640,7 @@ void loop()
         lcd.print(" bytes free");
         while (Keypress() != BACKKEY) {}; // Delay for Back key
         lcd.clear();
-        lcd.print("    (c) 2013    ");
+        lcd.print("    (c) 2014    ");
         lcd.setCursor(0,1);
         lcd.print("Antonis Maglaras");
         delay(100);
@@ -715,7 +723,7 @@ void MainMenu()
 // --- RETURN KEYPRESS function ----------------------------------------------------------------------------------------------------------------------
 // Check for keypress and return key.
 
-int Keypress()
+byte Keypress()
 {
   if (digitalRead(LeftButton) == LOW)
   {
@@ -731,13 +739,13 @@ int Keypress()
     else
       if (digitalRead(EnterButton) == LOW)
       {
-        delay(30);
+        delay(50);
         return ENTERKEY;
       }
       else
         if (digitalRead(BackButton) == LOW)
         {
-          delay(30);
+          delay(50);
           return BACKKEY;
         }
         else
@@ -775,7 +783,7 @@ void PrintDigits(int x, int y)
 // --- BEEP procedure --------------------------------------------------------------------------------------------------------------------------------
 // Make a beep!
 
-void Beep(int x)
+void Beep(byte x)
 {
   for (int j=0; j<x; j++)
   {
@@ -827,35 +835,35 @@ void SetupMenu()
   lcd.print("Wired Triggers  ");
   lcd.setCursor(0,1);
   StayInside=true;
-  int tmpOptocouplersStatus = OptocouplersStatus;
+  byte tmpOptocouplersStatus = OptocouplersStatus;
   while (StayInside)
   {
     if (Keypress() == LEFTKEY)
     {
       tmpOptocouplersStatus-=1;
-      if (tmpOptocouplersStatus<0)
-        tmpOptocouplersStatus=3;
+      if (tmpOptocouplersStatus<1)
+        tmpOptocouplersStatus=4;
     }
     if (Keypress() == RIGHTKEY)
     {
       tmpOptocouplersStatus+=1;
-      if (tmpOptocouplersStatus>3)
-        tmpOptocouplersStatus=0;
+      if (tmpOptocouplersStatus>4)
+        tmpOptocouplersStatus=1;
     }
     lcd.setCursor(0,1);
     switch (tmpOptocouplersStatus)
     {
-      case 0:     
-        lcd.print("Both Active     ");
-        break;
-      case 1:
-        lcd.print("First Only      ");
+      case 1:     
+        lcd.print("Both Enabled    ");
         break;
       case 2:
-        lcd.print("Second Only     ");
+        lcd.print("First Only      ");
         break;
       case 3:
-        lcd.print("Both NOT Active ");
+        lcd.print("Second Only     ");
+        break;
+      case 4:
+        lcd.print("Both Disabled   ");
         break;
     }
     if (Keypress() == ENTERKEY)
@@ -863,18 +871,21 @@ void SetupMenu()
       OptocouplersStatus = tmpOptocouplersStatus;
       switch (OptocouplersStatus)
       {
-        case 0:
+        case 1:
           Optocoupler1Enabled=true;
           Optocoupler2Enabled=true;
           break;
-        case 1:
+        case 2:
           Optocoupler1Enabled=true;
           Optocoupler2Enabled=false;
           break;
-        case 2:
+        case 3:
           Optocoupler1Enabled=false;
           Optocoupler2Enabled=true;
           break;
+        case 4:
+          Optocoupler1Enabled=false;
+          Optocoupler2Enabled=false;
       }
       WriteToMem(16,OptocouplersStatus);    
       SettingsSaved();
@@ -886,40 +897,40 @@ void SetupMenu()
   lcd.print("Infrared Trigger");
   lcd.setCursor(0,1);
   StayInside=true;
-  int tmpCameraBrand=CameraBrand;
+  byte tmpCameraBrand=CameraBrand;
   while (StayInside)
   {
     if (Keypress() == LEFTKEY)
     {
       tmpCameraBrand-=1;
-      if (tmpCameraBrand<0)
-        tmpCameraBrand=5;
+      if (tmpCameraBrand<1)
+        tmpCameraBrand=6;
     }
     if (Keypress() == RIGHTKEY)
     {
       tmpCameraBrand+=1;
-      if (tmpCameraBrand>5)
-        tmpCameraBrand=0;
+      if (tmpCameraBrand>6)
+        tmpCameraBrand=1;
     }
     lcd.setCursor(0,1);
     switch (tmpCameraBrand)
     {
-      case 0: // None
+      case 1: // None
         lcd.print("Disabled");
         break;
-      case 1: // Olympus
+      case 2: // Olympus
         lcd.print("Olympus ");
         break;
-      case 2: // Pentax
+      case 3: // Pentax
         lcd.print("Pentax  ");
         break;
-      case 3:
+      case 4:
         lcd.print("Canon   ");
         break;
-      case 4: // Nikon
+      case 5: // Nikon
         lcd.print("Nikon   ");
         break;
-      case 5: // Sony
+      case 6: // Sony
         lcd.print("Sony    ");
         break;
     }
@@ -937,23 +948,50 @@ void SetupMenu()
   lcd.print("Light Trigger  ");
   lcd.setCursor(0,1);
   lcd.print("Trigger on     ");
-  boolean tmpBuiltInLightTrigger=BuiltInLightTrigger;
+  boolean tmpBuiltInLightTriggerHorL=BuiltInLightTriggerHorL;
   while (StayInside)
   {
     lcd.setCursor(11,1);
-    if (tmpBuiltInLightTrigger)
+    if (tmpBuiltInLightTriggerHorL)
       lcd.print("HIGH");
     else
       lcd.print("LOW ");
     if ((Keypress() == LEFTKEY) != (Keypress() == RIGHTKEY))
-      tmpBuiltInLightTrigger = !(tmpBuiltInLightTrigger);
+      tmpBuiltInLightTriggerHorL = !(tmpBuiltInLightTriggerHorL);
     if (Keypress() == ENTERKEY)
     {
-      BuiltInLightTrigger=tmpBuiltInLightTrigger;
-      if (BuiltInLightTrigger)
+      BuiltInLightTriggerHorL=tmpBuiltInLightTriggerHorL;
+      if (BuiltInLightTriggerHorL)
         WriteToMem(22,1);
       else
         WriteToMem(22,0);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+      SettingsNotSaved();
+  }
+  StayInside=true;
+  lcd.clear();
+  lcd.print("Ext. Trigger   ");
+  lcd.setCursor(0,1);
+  lcd.print("Trigger on     ");
+  boolean tmpExtTrigger=ExtTrigger;
+  while (StayInside)
+  {
+    lcd.setCursor(11,1);
+    if (tmpExtTrigger)
+      lcd.print("HIGH");
+    else
+      lcd.print("LOW ");
+    if ((Keypress() == LEFTKEY) != (Keypress() == RIGHTKEY))
+      tmpExtTrigger = !(tmpExtTrigger);
+    if (Keypress() == ENTERKEY)
+    {
+      ExtTrigger=tmpExtTrigger;
+      if (ExtTrigger)
+        WriteToMem(26,1);
+      else
+        WriteToMem(26,0);
       SettingsSaved();
     }
     if (Keypress() == BACKKEY)
@@ -1063,14 +1101,14 @@ void SetupMenu()
     if (Keypress() == LEFTKEY)
     {
       tmpTimeLapseExposure-=1;
-      if (tmpTimeLapseExposure<0)
-        tmpTimeLapseExposure=300;
+      if (tmpTimeLapseExposure<1)
+        tmpTimeLapseExposure=360;
     }
     if (Keypress() == RIGHTKEY)
     {
       tmpTimeLapseExposure+=1;
-      if (tmpTimeLapseExposure>300)
-        tmpTimeLapseExposure=0;
+      if (tmpTimeLapseExposure>360)
+        tmpTimeLapseExposure=1;
     }
     lcd.setCursor(9,1);
     PrintDigits(tmpTimeLapseExposure,3);
@@ -1085,16 +1123,47 @@ void SetupMenu()
   }
   StayInside=true;
   lcd.clear();
+  lcd.print("Timelapse Intrvl");
+  lcd.setCursor(0,1);
+  lcd.print("Seconds: ");
+  int tmpTimeLapseInterval=TimeLapseInterval;
+  while (StayInside)
+  {
+    if (Keypress() == LEFTKEY)
+    {
+      tmpTimeLapseInterval-=1;
+      if (tmpTimeLapseInterval<1)
+        tmpTimeLapseInterval=360;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      tmpTimeLapseInterval+=1;
+      if (tmpTimeLapseInterval>360)
+        tmpTimeLapseInterval=1;
+    }
+    lcd.setCursor(9,1);
+    PrintDigits(tmpTimeLapseInterval,3);
+    if (Keypress() == ENTERKEY)
+    {
+      TimeLapseInterval=tmpTimeLapseInterval;
+      WriteToMem(28,TimeLapseInterval);
+      SettingsSaved();
+    }
+    if (Keypress() == BACKKEY)
+    SettingsNotSaved();
+  }
+  StayInside=true;
+  lcd.clear();
   lcd.print("HighSpeed Delay ");
   lcd.setCursor(0,1);
   lcd.print("Millis: ");
-  int tmpHighSpeedDelay=HighSpeedDelay;
+  byte tmpHighSpeedDelay=HighSpeedDelay;
   while (StayInside)
   {
     if (Keypress() == LEFTKEY)
     {
       tmpHighSpeedDelay-=1;
-      if (tmpHighSpeedDelay<0)
+      if (tmpHighSpeedDelay<1)
         tmpHighSpeedDelay=100;
     }
     if (Keypress() == RIGHTKEY)
@@ -1119,20 +1188,20 @@ void SetupMenu()
   lcd.print("HighSpeed Limit");
   lcd.setCursor(0,1);
   lcd.print("Times: ");
-  int tmpLimitTimes=LimitTimes;
+  byte tmpLimitTimes=LimitTimes;
   while (StayInside)
   {
     if (Keypress() == LEFTKEY)
     {
       tmpLimitTimes-=1;
-      if (tmpLimitTimes<0)
-        tmpLimitTimes=0;
+      if (tmpLimitTimes<1)
+        tmpLimitTimes=50;
     }
     if (Keypress() == RIGHTKEY)
     {
       tmpLimitTimes+=1;
       if (tmpLimitTimes>50)
-        tmpLimitTimes=50;
+        tmpLimitTimes=1;
     }
     lcd.setCursor(7,1);
     PrintDigits(tmpLimitTimes,2);
@@ -1214,8 +1283,8 @@ void SetupMenu()
 
 void WriteToMem(byte address, int number)
 {
-  int a = number/256;
-  int b = number % 256;
+  byte a = number/256;
+  byte b = number % 256;
   EEPROM.write(address,a);
   EEPROM.write(address+1,b);
 }
@@ -1228,8 +1297,8 @@ void WriteToMem(byte address, int number)
 
 int ReadFromMem(byte address)
 {
-  int a=EEPROM.read(address);
-  int b=EEPROM.read(address+1);
+  byte a=EEPROM.read(address);
+  byte b=EEPROM.read(address+1);
 
   return a*256+b;
 }
@@ -1272,27 +1341,7 @@ void Trigger()
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
   digitalWrite(LEDPin, HIGH);
-  if (CameraBrand != 0)
-  {
-    switch (CameraBrand)
-    {
-      case 1: // Olympus
-        OlympusCamera.shutterNow();
-        break;
-      case 2: // Pentax
-        PentaxCamera.shutterNow();
-        break;
-      case 3: // Canon
-        CanonCamera.shutterNow();
-        break;
-      case 4: // Nikon
-        NikonCamera.shutterNow();
-        break;
-      case 5: // Sony
-        SonyCamera.shutterNow();
-        break;
-    }
-  }
+  ShootIR();
   delay(ShutterDelay);  
   if (Optocoupler1Enabled)
     digitalWrite(Optocoupler1Pin, LOW);
@@ -1319,27 +1368,7 @@ void TriggerTimeLapse()
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
   digitalWrite(LEDPin, HIGH);    
-  if (CameraBrand != 0)
-  {
-    switch (CameraBrand)
-    {
-      case 1: // Olympus
-        OlympusCamera.shutterNow();
-        break;
-      case 2: // Pentax
-        PentaxCamera.shutterNow();
-        break;
-      case 3: // Canon
-        CanonCamera.shutterNow();
-        break;
-      case 4: // Nikon
-        NikonCamera.shutterNow();
-        break;
-      case 5: // Sony
-        SonyCamera.shutterNow();
-        break;
-    }
-  }
+  ShootIR();
   for (int x=0; x<TimeLapseExposure; x++)
     delay(1000);  
   if (Optocoupler1Enabled)
@@ -1359,13 +1388,13 @@ void TriggerTimeLapse()
 
 void HighSpeedTrigger()
 {
-  digitalWrite(LEDPin, HIGH);
+//  digitalWrite(LEDPin, HIGH);
   digitalWrite(Optocoupler1Pin, HIGH);
   digitalWrite(Optocoupler2Pin, HIGH);
   delay(HighSpeedDelay);
   digitalWrite(Optocoupler1Pin, LOW);
   digitalWrite(Optocoupler2Pin, LOW);
-  digitalWrite(LEDPin, LOW);  
+//  digitalWrite(LEDPin, LOW);  
 }
 
 
@@ -1375,31 +1404,9 @@ void HighSpeedTrigger()
 
 void StartBulb()
 {
-//  OlympusCamera.shutterNow();
   digitalWrite(Optocoupler1Pin, HIGH);
   digitalWrite(Optocoupler2Pin, HIGH);
   digitalWrite(LEDPin, HIGH);
-  if (CameraBrand != 0)
-  {
-    switch (CameraBrand)
-    {
-      case 1: // Olympus
-        OlympusCamera.shutterNow();
-        break;
-      case 2: // Pentax
-        PentaxCamera.shutterNow();
-        break;
-      case 3: // Canon
-        CanonCamera.shutterNow();
-        break;
-      case 4: // Nikon
-        NikonCamera.shutterNow();
-        break;
-      case 5: // Sony
-        SonyCamera.shutterNow();
-        break;
-    }
-  }  
   if (MakeSounds)
     Beep(1);
 }
@@ -1462,8 +1469,6 @@ void FactoryReset()
         {
           for (int i = 0; i < 512; i++)
             EEPROM.write(i, 0);      
-          lcd.setCursor(0,1);
-          lcd.print("Done!           ");
           WriteToMem(0,1);
           WriteToMem(2,1);
           WriteToMem(4,0);
@@ -1476,7 +1481,11 @@ void FactoryReset()
           WriteToMem(18,5);
           WriteToMem(20,10);
           WriteToMem(22,1);
-          WriteToMem(24,60);
+          WriteToMem(24,1);
+          WriteToMem(26,1);
+          WriteToMem(28,15);
+          lcd.setCursor(0,1);
+          lcd.print("Done!           ");
           Beep(3);
           delay(1000);
           SoftReset();
@@ -1538,4 +1547,35 @@ void SettingsNotSaved()
   if (MakeSounds)
     Beep(2);
   delay(500);     
+}
+
+
+
+
+// --- Shoot using Infrared --------------------------------------------------------------------------------------------------------------------------
+// Trigger the selected camera using Infrared.
+
+void ShootIR()
+{
+  if (CameraBrand != 1)
+  {
+    switch (CameraBrand)
+    {
+      case 2: // Olympus
+        OlympusCamera.shutterNow();
+        break;
+      case 3: // Pentax
+        PentaxCamera.shutterNow();
+        break;
+      case 4: // Canon
+        CanonCamera.shutterNow();
+        break;
+      case 5: // Nikon
+        NikonCamera.shutterNow();
+        break;
+      case 6: // Sony
+        SonyCamera.shutterNow();
+        break;
+    }
+  }
 }
