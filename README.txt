@@ -31,13 +31,15 @@ kIt uses two (2) optocouplers (MOC3061 for up to 400V Peak).
 It can also trigger a camera (or something else?) via IR. 
 Supported cameras: Olympus, Pentax, Canon, Nikon, Sony.
 
-It has 6 buttons (Reset, Previous, Next, Enter, Back, Shoot) and a LCD display for interfacing.
+It has 6 buttons (Reset, Previous, Next, Enter, Back, Shoot) and a LCD display for 
+interfacing.
 
 
 
 Modes:
 
--> Light Trigger. It can be programmed to trigger on HIGH or LOW, using built-in light detector.
+-> Light Trigger. It can be programmed to trigger on HIGH or LOW, using built-in 
+   light detector.
 -> Time Lapse (0-360 secs).
 -> External Trigger (for connecting (digital-output) sound/light/etc modules).
 -> Bulb mode.
