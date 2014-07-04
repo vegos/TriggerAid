@@ -1,38 +1,21 @@
                                     TriggerAid
                                     ----------
-                             The Camera/Flash Trigger!
-			     -------------------------
+                          HighSpeed Camera/Flash Trigger!
+			  -------------------------------
                          http://vegos.github.io/TriggerAid
 
 		
 
-NOTE: 
-
-My new version is a custom board with all the components installed on it.
-The principle is the same, but there are minor changes on pin layout, functions, etc.
-The PCB is a simple Arduino board with the LCD (2x16) and the basic sensors, LEDs 
-and buttons installed. 
-It lacks of RTC and have one more dedicated button (Shoot), also input for another 
-one external sensor (analog reading). It also have some DIP Switches for enabling/disabling 
-some pull down resistors.
-
-
-
 Hardware Required:
 
-Arduino (I used a Leonardo), ProtoShield, 2 Optocouplers, IR LED, 
-Phototransistor, Buzzer, Tacticle Switches, Resistors, Wires, Jacks, and
-some more things that I'm sure I forgot. 
-Oh, and -last but not least- a nice enclosure to put the (finished) project inside :)
+Custom PCB (ATmega328-based, programmed in Arduino IDE) with 2x16 LCD (HD44780).
+Parts are specified at "Parts.txt".
 
 
 
 Libraries required:
 
-Wire - Arduino included Library
-LiquidCrystal_I2C - http://www.xs4all.nl/~hmario/arduino/LiquidCrystal_I2C/LiquidCrystal_I2C.zip
-DS1307RTC - http://code.google.com/p/arduino-time/source/browse/#svn%2Ftrunk%2FDS1307RTC
-Time - Arduino included Library
+LiquidCrystal - Arduino included library
 MemoryFree - http://playground.arduino.cc/Code/AvailableMemory
 EEPROM - Arduino included Library
 multiCameraIrControl - http://sebastian.setz.name/arduino/my-libraries/multi-camera-ir-control/
@@ -41,24 +24,25 @@ multiCameraIrControl - http://sebastian.setz.name/arduino/my-libraries/multi-cam
 
 Features:
 
-Can trigger a camera (with separate or no) focus & shutter, or two cameras
-(with combined focus & shutter), or two flashes via WIRED jack. kIt uses two
-(2) optocouplers (MOC3021 for up to 400V Peak).
+Can trigger a camera' focus & shutter, or two cameras (with combined focus & shutter), 
+or two flashes via WIRED jack.
+kIt uses two (2) optocouplers (MOC3061 for up to 400V Peak).
 It can also trigger a camera (or something else?) via IR. 
 Supported cameras: Olympus, Pentax, Canon, Nikon, Sony.
+
+It has 6 buttons (Reset, Previous, Next, Enter, Back, Shoot) and a LCD display for interfacing.
 
 
 
 Modes:
 
--> Light Trigger. It can be programmed to trigger on HIGH or LOW.
+-> Light Trigger. It can be programmed to trigger on HIGH or LOW, using built-in light detector.
 -> Time Lapse (0-360 secs).
 -> External Trigger (for connecting (digital-output) sound/light/etc modules).
-   Exposure is specified on setup menu (for use with Bulb mode).
--> Bulb mode (1-999 seconds).
--> High Speed Flash Triggering (1-100ms, for 1-50 times).
--> Fully customizable / Menu driven.
-
+-> Bulb mode.
+-> High Speed Burst Flash Triggering (1-100ms, for 1-50 times).
+-> Manual Shoot (bulb) mode.
+-> Setup Menu for storing default parameters (on EEPROM).
 
 
 
