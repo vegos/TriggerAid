@@ -2,6 +2,7 @@
                                     ----------
                           HighSpeed Camera/Flash Trigger!
 			  -------------------------------
+                       http://www.facebook.com/TheTriggerAid
                          http://vegos.github.io/TriggerAid
 
 		
