@@ -9,7 +9,25 @@
 //     Photos etc at: http://www.facebook.com/TheTriggerAid & http://www.slr.gr/trigger
 //     
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
-
+//
+//     EEPROM Mapping
+//
+//      0 - Buzzer On/Off (1/0)
+//      4 - PreDelay (in ms)
+//      6 - Shutter Delay (in ms)
+//      8 - Afer Shot Delay (in ms)
+//     10 - Camera Brand for Infrared (1: Off, 2: Olympus, 3: Pentax, 4: Canon, 5: Nikon, 6: Sony)
+//     12 - Prefocus On/Off (1/0)
+//     14 - Shortcut Menu Option
+//     16 - Optocouplers Status (1: Both On, 2: First, 3: Second, 4: Both Off)
+//     18 - Highspeed Delay (ms)
+//     20 - Highspeed Limit (times)
+//     22 - Built-in Light Trigger on High/Low (1/0)
+//     26 - External Trigger on High/Low (1/0)
+//     24 - Timelapse Exposure (in seconds)
+//     28 - Timelapse Interval (in seconds)
+//
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -21,8 +39,9 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-#define  Version         "2.1.1"          // Current Version
+#define  Version         "2.1.2"          // Current Version
 
+#define WITHLED                           // For PCB v2.0 or with no LED installed, remark this line
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
 byte ONChar[8] =  { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
@@ -42,7 +61,10 @@ byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
 #define  IRLedPin          10      // For IR transmitting
 #define  LightSensorPin    A1      // Built-in Light trigger
 
-//#define  LEDPin            A5      // LED Pin
+#ifdef WITHLED
+  #define  LEDPin          A5      // LED Pin - On when triggering is active
+#endif
+
 #define  ExternalPin        8      // External (digital) sensor pin
 #define  BuzzerPin         A0      // Buzzer -- I used a PWM pin. Maybe in next version will play some music :)
 
@@ -119,7 +141,9 @@ void setup()
   pinMode(ExternalPin, INPUT);
   pinMode(Optocoupler1Pin, OUTPUT);
   pinMode(Optocoupler2Pin, OUTPUT);
-  pinMode(LEDPin, OUTPUT);
+  #ifdef WITHLED 
+    pinMode(LEDPin, OUTPUT);
+  #endif  
   // Read settings from EEPROM
   if (ReadFromMem(0)==1)
     MakeSounds=true;
@@ -188,6 +212,9 @@ void loop()
     // On SHOOT key press, start bulb shooting
     if (Keypress() == SHOOTKEY)
     {
+      #ifdef WITHLED
+        digitalWrite(LEDPin, HIGH);
+      #endif        
       lcd.setCursor(0,1);
       lcd.print("Bulb Shooting...");
       StartBulb();
@@ -195,6 +222,9 @@ void loop()
       StopBulb();
       lcd.setCursor(0,1);
       lcd.print("Ready!          ");    
+      #ifdef WITHLED
+        digitalWrite(LEDPin, LOW);
+      #endif       
     }
     // On BACK key pressed for 3 seconds, go to shortcut
     if (Keypress() == BACKKEY)
@@ -259,6 +289,9 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
+              #ifdef WITHLED
+                digitalWrite(LEDPin, HIGH);
+              #endif                
               lcd.setCursor(0,0);
               lcd.print("Light Trigger  ");
               lcd.setCursor(0,1);
@@ -288,6 +321,9 @@ void loop()
               if (PreFocus)
                 PreFocusStop();
               Armed=false;
+              #ifdef WITHLED
+                digitalWrite(LEDPin, LOW);
+              #endif                              
               lcd.setCursor(0,0);
               lcd.print("Light:         ");
               lcd.setCursor(0,1);
@@ -335,10 +371,7 @@ void loop()
           }
         }
         StandBy=true;
-        lcd.clear();
-        lcd.print("   TriggerAid   ");
-        lcd.setCursor(0,1);
-        lcd.print("Ready!          ");    
+        ClearScreen();
         break;
       case 2:
         lcd.clear();
@@ -355,6 +388,9 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
+              #ifdef WITHLED
+                digitalWrite(LEDPin, HIGH);
+              #endif                              
               lcd.setCursor(0,1);
               lcd.print("Active!        ");
               lcd.setCursor(15,0);
@@ -376,6 +412,9 @@ void loop()
                     PreFocusStart();
                 }
               }
+              #ifdef WITHLED
+                digitalWrite(LEDPin, LOW);
+              #endif                              
               if (PreFocus)
                 PreFocusStop();
               lcd.setCursor(0,1);
@@ -402,10 +441,7 @@ void loop()
             lcd.print("LOW ");
         }
         StandBy=true;
-        lcd.clear();
-        lcd.print("   TriggerAid   ");
-        lcd.setCursor(0,1);
-        lcd.print("Ready!          ");        
+        ClearScreen();
         break;
       case 3:
         lcd.clear();
@@ -426,6 +462,9 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
+              #ifdef WITHLED
+                digitalWrite(LEDPin, HIGH);
+              #endif                              
               lcd.setCursor(15,0);
               lcd.write(1);
               StartMillis=millis();
@@ -446,6 +485,7 @@ void loop()
             if (PreFocus)
               PreFocusStart();
             if (remaining <= 1)
+//            if ((millis()-StartMillis)>=(tmpDelay*1000))
             {
               TriggerTimeLapse();
               StartMillis=millis();
@@ -453,6 +493,9 @@ void loop()
           }
           else
           {
+            #ifdef WITHLED
+              digitalWrite(LEDPin, LOW);
+            #endif                            
             lcd.setCursor(11,0);
             lcd.print("   ");
           }
@@ -469,13 +512,10 @@ void loop()
               tmpDelay=1;
           }
           lcd.setCursor(10,1);
-          PrintDigits(tmpDelay,3);
+          PrintDigits(tmpDelay,3);          
         }
         StandBy=true;
-        lcd.clear();
-        lcd.print("   TriggerAid   ");
-        lcd.setCursor(0,1);
-        lcd.print("Ready!          ");        
+        ClearScreen();
         break;
       case 4:
         lcd.clear();
@@ -494,6 +534,9 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
+              #ifdef WITHLED
+                digitalWrite(LEDPin, HIGH);
+              #endif                              
               lcd.setCursor(15,0);
               lcd.write(1);
               StartMillis=millis();
@@ -513,6 +556,9 @@ void loop()
             if ((millis()-StartMillis)>=(tmpDelay*1000))
             {
               StopBulb();
+              #ifdef WITHLED
+                digitalWrite(LEDPin, LOW);
+              #endif                              
               Armed=false;
               lcd.setCursor(15,0);
               lcd.write(2);
@@ -539,10 +585,7 @@ void loop()
           PrintDigits(tmpDelay,3);
         }
         StandBy=true;
-        lcd.clear();
-        lcd.print("   TriggerAid   ");
-        lcd.setCursor(0,1);
-        lcd.print("Ready!          ");    
+        ClearScreen();
         break;
       case 5:
         lcd.clear();
@@ -561,12 +604,16 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
+              #ifdef WITHLED
+                digitalWrite(LEDPin, HIGH);
+              #endif                              
               lcd.setCursor(15,0);
               lcd.write(1);
               lcd.setCursor(0,1);
               lcd.print("Shooting!       ");
               StartMillis=millis();
               StayInside=true;
+//              Limit=1;
               while (StayInside)
               {
                 if (millis()-StartMillis>tmpDelay)
@@ -594,6 +641,9 @@ void loop()
                   lcd.print("Interval:     ms");
                 }
               }
+              #ifdef WITHLED
+                digitalWrite(LEDPin, HIGH);
+              #endif                
             }
             else
             {
@@ -619,17 +669,11 @@ void loop()
           PrintDigits(tmpDelay,3);         
         }
         StandBy=true;
-        lcd.clear();
-        lcd.print("   TriggerAid   ");
-        lcd.setCursor(0,1);
-        lcd.print("Ready!          ");    
+        ClearScreen();
         break;
       case 6:
         SetupMenu();
-        lcd.clear();
-        lcd.print("   TriggerAid   ");
-        lcd.setCursor(0,1);
-        lcd.print("Ready!          ");    
+        ClearScreen();
         break;
       case 7:
         lcd.clear();
@@ -645,19 +689,13 @@ void loop()
         lcd.print("Antonis Maglaras");
         delay(100);
         while (Keypress() != BACKKEY) {}; // Delay for Back key     
-        lcd.clear();
         StandBy=true;
-        lcd.print("   TriggerAid   ");
-        lcd.setCursor(0,1);
-        lcd.print("Ready!          ");        
+        ClearScreen();
         break;
       case 8:
         FactoryReset();
-        lcd.clear();
         StandBy=true;
-        lcd.print("   TriggerAid   ");
-        lcd.setCursor(0,1);
-        lcd.print("Ready!          ");        
+        ClearScreen();
         break;       
     }
   }  
@@ -702,18 +740,12 @@ void MainMenu()
     if (Keypress() == BACKKEY)
     {
       Mode=MenuSelection;
-      lcd.clear();
-      lcd.print("   TriggerAid   ");
-      lcd.setCursor(0,1);
-      lcd.print("Ready!          ");    
+      ClearScreen();
       StayInside=false;
       return; 
     }
   }
-  lcd.clear();
-  lcd.print("   TriggerAid   ");
-  lcd.setCursor(0,1);
-  lcd.print("Ready!          ");        
+  ClearScreen();
   delay(10);
 }
 
@@ -1340,7 +1372,6 @@ void Trigger()
       digitalWrite(Optocoupler1Pin, HIGH);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
-  digitalWrite(LEDPin, HIGH);
   ShootIR();
   delay(ShutterDelay);  
   if (Optocoupler1Enabled)
@@ -1350,7 +1381,6 @@ void Trigger()
   delay(AfterDelay);
   if (MakeSounds)
     Beep(3);
-  digitalWrite(LEDPin, LOW);    
 }
 
 
@@ -1367,7 +1397,6 @@ void TriggerTimeLapse()
       digitalWrite(Optocoupler1Pin, HIGH);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
-  digitalWrite(LEDPin, HIGH);    
   ShootIR();
   for (int x=0; x<TimeLapseExposure; x++)
     delay(1000);  
@@ -1377,7 +1406,6 @@ void TriggerTimeLapse()
     digitalWrite(Optocoupler2Pin, LOW);
   if (MakeSounds)
     Beep(3);
-  digitalWrite(LEDPin, LOW);    
 }
 
 
@@ -1388,13 +1416,11 @@ void TriggerTimeLapse()
 
 void HighSpeedTrigger()
 {
-//  digitalWrite(LEDPin, HIGH);
   digitalWrite(Optocoupler1Pin, HIGH);
   digitalWrite(Optocoupler2Pin, HIGH);
   delay(HighSpeedDelay);
   digitalWrite(Optocoupler1Pin, LOW);
   digitalWrite(Optocoupler2Pin, LOW);
-//  digitalWrite(LEDPin, LOW);  
 }
 
 
@@ -1404,9 +1430,9 @@ void HighSpeedTrigger()
 
 void StartBulb()
 {
+//  OlympusCamera.shutterNow();
   digitalWrite(Optocoupler1Pin, HIGH);
   digitalWrite(Optocoupler2Pin, HIGH);
-  digitalWrite(LEDPin, HIGH);
   if (MakeSounds)
     Beep(1);
 }
@@ -1420,7 +1446,6 @@ void StopBulb()
 {
   digitalWrite(Optocoupler1Pin, LOW);
   digitalWrite(Optocoupler2Pin, LOW);
-  digitalWrite(LEDPin, LOW);
   delay(AfterDelay);
   if (MakeSounds)
     Beep(2);
@@ -1578,4 +1603,18 @@ void ShootIR()
         break;
     }
   }
+}
+
+
+
+// --- Shoot using Infrared --------------------------------------------------------------------------------------------------------------------------
+// Trigger the selected camera using Infrared.
+
+void ClearScreen()
+{
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("   TriggerAid   ");
+  lcd.setCursor(0,1);
+  lcd.print("Ready!          ");        
 }
