@@ -4,7 +4,7 @@
   <head>
     <meta charset='utf-8' />
     <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="(The home of) TriggerAid : Camera/Flash Trigger with I2C LCD, RTC, Light Sensor, Time Lapse Mode, External Sensors etc." />
+    <meta name="description" content="(The home of) TriggerAid : High Speed Camera &amp; Flash Trigger (w/ LCD, Light Sensor, Time Lapse Mode, External Sensors etc.)" />
 
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
@@ -19,7 +19,7 @@
           <a id="forkme_banner" href="https://github.com/vegos/TriggerAid">View on GitHub</a>
 
           <h1 id="project_title">(The home of) TriggerAid</h1>
-          <h2 id="project_tagline">Camera/Flash Trigger with I2C LCD, RTC, Light Sensor, Time Lapse Mode, External Sensors etc.</h2>
+          <h2 id="project_tagline">High Speed Camera &amp; Flash Trigger (w/ LCD, Light Sensor, Time Lapse Mode, External Sensors etc.)</h2>
 
             <section id="downloads">
               <a class="zip_download_link" href="https://github.com/vegos/TriggerAid/zipball/master">Download this project as a .zip file</a>
@@ -33,55 +33,47 @@
       <section id="main_content" class="inner">
         <pre><code>                                TriggerAid
                                 ----------
-                         The Camera/Flash Trigger!
-             -------------------------
+                      HighSpeed Camera/Flash Trigger!
+          -------------------------------
+                   http://www.facebook.com/TheTriggerAid
                      http://vegos.github.io/TriggerAid
 </code></pre>
 
-<h2>Hardware Required</h2>
+<p>Hardware Required:</p>
 
-<p>Arduino (I used a Leonardo), ProtoShield, 2 Optocouplers, IR LED, 
-Phototransistor, Buzzer, Tacticle Switches, Resistors, Wires, Jacks, and
-some more things that I'm sure I forgot. 
-Oh, and -last but not least- a nice enclosure to put the (finished) project inside :)</p>
+<p>Custom PCB (ATmega328-based, programmed in Arduino IDE) with 2x16 LCD (HD44780).
+Parts are specified at "Parts.txt".</p>
 
-<h2>Libraries required</h2>
+<p>Libraries required:</p>
 
-<p>Wire - Arduino included Library
-LiquidCrystal_I2C - <a href="http://www.xs4all.nl/%7Ehmario/arduino/LiquidCrystal_I2C/LiquidCrystal_I2C.zip">http://www.xs4all.nl/~hmario/arduino/LiquidCrystal_I2C/LiquidCrystal_I2C.zip</a>
-DS1307RTC - <a href="http://code.google.com/p/arduino-time/source/browse/#svn%2Ftrunk%2FDS1307RTC">http://code.google.com/p/arduino-time/source/browse/#svn%2Ftrunk%2FDS1307RTC</a>
-Time - Arduino included Library
+<p>LiquidCrystal - Arduino included library
 MemoryFree - <a href="http://playground.arduino.cc/Code/AvailableMemory">http://playground.arduino.cc/Code/AvailableMemory</a>
 EEPROM - Arduino included Library
 multiCameraIrControl - <a href="http://sebastian.setz.name/arduino/my-libraries/multi-camera-ir-control/">http://sebastian.setz.name/arduino/my-libraries/multi-camera-ir-control/</a></p>
 
-<h2>Features</h2>
+<p>Features:</p>
 
-<p>Can trigger a camera (with separate or no) focus &amp; shutter, or two cameras
-(with combined focus &amp; shutter), or two flashes via WIRED jack. It uses two
-(2) optocouplers (MOC3021 for up to 400V Peak).
-It can also trigger a camera (or something else?) via IR.</p>
+<p>Can trigger a camera' focus &amp; shutter, or two cameras (with combined focus &amp; shutter), 
+or two flashes via WIRED jack.
+kIt uses two (2) optocouplers (MOC3061 for up to 400V Peak).
+It can also trigger a camera (or something else?) via IR. 
+Supported cameras: Olympus, Pentax, Canon, Nikon, Sony.</p>
 
-<h2>Modes</h2>
+<p>It has 6 buttons (Reset, Previous, Next, Enter, Back, Shoot) and a LCD display for 
+interfacing.</p>
 
-<ul>
-<li>Light Trigger. Can trigger when the light reading is more or less the selected threshold.</li>
-<li>Time Lapse (0-360 secs).</li>
-<li>External Trigger (for connecting (digital-output) sound/light/etc modules).</li>
-<li>Bulb mode (1-999 seconds).</li>
-<li>High Speed Flash Triggering (1-100ms, for 1-50 times). Useful for burst flash photography.</li>
-<li>Fully customizable / Menu driven.</li>
-</ul><h2>More info?</h2>
+<p>Modes:</p>
 
-<p>Take a look at Wiki pages, here on <a href="https://github.com/vegos/TriggerAid/wiki">https://github.com/vegos/TriggerAid/wiki</a> or at <a href="http://www.slr.gr/trigger">http://www.slr.gr/trigger</a>. Photos can be found at <a href="https://picasaweb.google.com/104656736936976952947/CameraTrigger">https://picasaweb.google.com/104656736936976952947/CameraTrigger</a>.</p>
+<p>-&gt; Light Trigger. It can be programmed to trigger on HIGH or LOW, using built-in 
+   light detector.
+-&gt; Time Lapse (0-360 secs).
+-&gt; External Trigger (for connecting (digital-output) sound/light/etc modules).
+-&gt; Bulb mode.
+-&gt; High Speed Burst Flash Triggering (1-100ms, for 1-50 times).
+-&gt; Manual Shoot (bulb) mode.
+-&gt; Setup Menu for storing default parameters (on EEPROM).</p>
 
-<h2>Last thing</h2>
-
-<p>Take photos! Enjoy your camera! The world is waiting for you to capture it!</p>
-
-<p>To be continued...</p>
-
-<p><img src="https://raw.github.com/vegos/TriggerAid/master/TriggerAid.jpg" alt="TriggerAid"></p>
+<p>To be continued... </p>
       </section>
     </div>
 
