@@ -12,20 +12,22 @@
 //
 //     EEPROM Mapping
 //
-//      0 - Buzzer On/Off (1/0)
-//      4 - PreDelay (in ms)
-//      6 - Shutter Delay (in ms)
-//      8 - Afer Shot Delay (in ms)
-//     10 - Camera Brand for Infrared (1: Off, 2: Olympus, 3: Pentax, 4: Canon, 5: Nikon, 6: Sony)
-//     12 - Prefocus On/Off (1/0)
+//      0 - Buzzer On/Off (1/0 / True/False)
+//      4 - PreDelay (0..3000 ms / 0..3 sec)
+//      6 - Shutter Delay (0..3000 ms / 0..3 sec)
+//      8 - Afer Shot Delay (0..3000 ms / 0..3 sec)
+//     10 - Camera Brand for Infrared (1..6 / 1: Off, 2: Olympus, 3: Pentax, 4: Canon, 5: Nikon, 6: Sony)
+//     12 - Prefocus On/Off (1/0 / True/False)
 //     14 - Shortcut Menu Option
 //     16 - Optocouplers Status (1: Both On, 2: First, 3: Second, 4: Both Off)
-//     18 - Highspeed Delay (ms)
-//     20 - Highspeed Limit (times)
-//     22 - Built-in Light Trigger on High/Low (1/0)
-//     26 - External Trigger on High/Low (1/0)
-//     24 - Timelapse Exposure (in seconds)
-//     28 - Timelapse Interval (in seconds)
+//     18 - Highspeed Delay (1..500 ms)
+//     20 - Highspeed Limit (2..50 times)
+//     22 - Built-in Light Trigger on High/Low (1/0 / True/False)
+//     26 - External Trigger on High/Low (1/0 / True/False)
+//     24 - Timelapse Exposure (1..300 seconds / 5 min)
+//     28 - Timelapse Interval (1..300 seconds / 5 min)
+//     30 - Button Delay (10..250 ms)
+//     32 - Buzzer Delay (10..250 ms)
 //
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -39,10 +41,10 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-#define  Version         "2.1.2"          // Current Version
+#define  Version         "2.1.4"          // Current Version
 
-#define WITHLED                           // For PCB v2.0 or with no LED installed, remark this line
-
+//#define WITHLED                           // For PCB v2.0 or with no LED installed, remark this line
+//#define CUSTOMMESSAGE    "0123456789012345"        // Custom Message (16 characters)
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
 byte ONChar[8] =  { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
 byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B00000 };
@@ -80,11 +82,11 @@ byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
                                    //                                                     flashes for example, or two cameras etc.
 
 //Olympus IR remote trigger
-Olympus OlympusCamera(IRLedPin);
-Pentax PentaxCamera(IRLedPin);
-Nikon NikonCamera(IRLedPin);
-Sony SonyCamera(IRLedPin);
-Canon CanonCamera(IRLedPin);
+Olympus OlympusCamera(IRLedPin);   // \
+Pentax PentaxCamera(IRLedPin);     //  \
+Nikon NikonCamera(IRLedPin);       //   >--- Create instances of camera types on the same pin, for use with infrared trigger
+Sony SonyCamera(IRLedPin);         //  /
+Canon CanonCamera(IRLedPin);       // /
 
 
 // Main Menu Strings
@@ -94,7 +96,7 @@ char* MenuItems[9] = { "",
                        "Time-Lapse      ",    // Mode 3: Time lapse. Exposure is available on setup menu (for use with Bulb mode, only on wired triggers).
                        "Bulb Mode       ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
                        "High Speed Burst",    // Mode 5: High Speed Burst mode (For flash units, as I guess that there are no cameras so fast).
-                       "Setup Parameters",    // Mode 6: Setup System (Delays, Buzzer, Triggers)
+                       "Setup           ",    // Mode 6: Setup System (Delays, Buzzer, Triggers)
                        "Information     ",    // Mode 7: Version information, memory free, etc.
                        "Factory Reset   ",    // Mode 8: Factory Reset.
                       };
@@ -107,12 +109,12 @@ byte Mode = 1, ShortCut, OptocouplersStatus;
 byte LightThreshold = 0, Light = 0;
 boolean StandBy = true;
 boolean Armed = false;
-boolean MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltInLightTriggerHorL, ExtTrigger;
+boolean MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltinTriggerOnHigh, ExtTriggerOnHigh;
 boolean StayInside = false;
-byte HighSpeedDelay, LimitTimes;
+byte HighSpeedDelay, LimitTimes, ButtonDelay, BuzzerDelay;
 int PreDelay, ShutterDelay, AfterDelay, Limit, TimeLapseExposure, TimeLapseInterval;
 int tmpDelay;
-long StartMillis, tmpMillis, TriggerMillis;
+long StartMillis;
 
 
 
@@ -131,6 +133,11 @@ void setup()
   lcd.setCursor(0,1);
   lcd.print("Antonis Maglaras");
   delay(1000);
+  #ifdef CUSTOMMESSAGE
+    lcd.setCursor(0,1);
+    lcd.print(CUSTOMMESSAGE);
+    delay(1000);
+  #endif
   // Setup pins
   pinMode(RightButton, INPUT_PULLUP);  
   pinMode(BackButton, INPUT_PULLUP);
@@ -162,15 +169,19 @@ void setup()
   HighSpeedDelay=ReadFromMem(18);
   LimitTimes=ReadFromMem(20);
   if (ReadFromMem(22)==1)
-    BuiltInLightTriggerHorL=true;
+    BuiltinTriggerOnHigh=true;
   else
-    BuiltInLightTriggerHorL=false;
+    BuiltinTriggerOnHigh=false;
   if (ReadFromMem(26)==1)
-    ExtTrigger=true;
+    ExtTriggerOnHigh=true;
   else
-    ExtTrigger=false;
+    ExtTriggerOnHigh=false;
   TimeLapseExposure=ReadFromMem(24);
   TimeLapseInterval=ReadFromMem(28);
+  BuzzerDelay=ReadFromMem(32);
+  ButtonDelay=ReadFromMem(30);
+  if (ButtonDelay == 0)                    // Check for zero delay on keys and set it to 50
+    ButtonDelay = 50;
   switch (OptocouplersStatus)
   {
     case 1:
@@ -195,8 +206,7 @@ void setup()
   StandBy=true;
   if (MakeSounds)
     Beep(1);
-  lcd.setCursor(0,1);
-  lcd.print("Ready!          ");    
+  ShowReady();
 }
 
 
@@ -220,33 +230,27 @@ void loop()
       StartBulb();
       while (Keypress() == SHOOTKEY);
       StopBulb();
-      lcd.setCursor(0,1);
-      lcd.print("Ready!          ");    
+      ShowReady();
       #ifdef WITHLED
         digitalWrite(LEDPin, LOW);
       #endif       
     }
     // On BACK key pressed for 3 seconds, go to shortcut
-    if (Keypress() == BACKKEY)
+    if (BackKey())
     {
       long Temp=millis();
+      while (BackKey())
       {
-        while (Backkey())
+        if (millis()-Temp>3000)
         {
-          if (millis()-Temp>3000)
-          {
-            if (MakeSounds)
-              Beep(3);
-            if (Backkey())
-            {
-              lcd.setCursor(0,1);
-              lcd.print("    Shortcut    ");
-              while (Backkey());
-            }
-            Mode=ShortCut;
-            StandBy=false;
-            return;
-          }
+          if (MakeSounds)
+            Beep(3);
+          lcd.setCursor(0,1);
+          lcd.print("    Shortcut    ");
+          while (BackKey());
+          Mode=ShortCut;
+          StandBy=false;
+          return;
         }
       }
     }
@@ -265,30 +269,32 @@ void loop()
         lcd.print("Threshold:     ");
         Light = map(analogRead(LightSensorPin),0,1023,1,100);
         lcd.setCursor(15,1);
-        if (BuiltInLightTriggerHorL)
+        if (BuiltinTriggerOnHigh)
         {
           lcd.print("H");
           LightThreshold = Light+10;
           if (LightThreshold>100)
-            LightThreshold=1;
+            LightThreshold=100;
         }
         else
         {
           lcd.print("L");
           LightThreshold = Light-10;
           if (LightThreshold<1)
-            LightThreshold=100;
+            LightThreshold=1;
         }
         Armed=false;
         lcd.setCursor(15,0);
         lcd.write(2);
-        while (Keypress() != BACKKEY)
+        while (!BackKey())
         {
           if (Keypress() == ENTERKEY)
           {
             Armed = !(Armed);
             if (Armed)
             {
+              if (PreFocus)
+                PreFocusStart();
               #ifdef WITHLED
                 digitalWrite(LEDPin, HIGH);
               #endif                
@@ -298,28 +304,14 @@ void loop()
               lcd.print("Active!        ");
               lcd.setCursor(15,0);
               lcd.write(1);
-              if (PreFocus)
-                PreFocusStart();
-              while (!Backkey())
+              while (!BackKey())
               {
                 Light = map(analogRead(LightSensorPin),0,1023,1,100);
-                if ((Light>LightThreshold) && (BuiltInLightTriggerHorL))
-                {
-                  TriggerMillis=millis();
+                if ((Light>LightThreshold) && (BuiltinTriggerOnHigh))
                   Trigger();
-                  if (PreFocus)
-                    PreFocusStart();
-                }
-                if ((Light<LightThreshold) && !(BuiltInLightTriggerHorL))
-                {
-                  TriggerMillis=millis();
+                if ((Light<LightThreshold) && !(BuiltinTriggerOnHigh))
                   Trigger();
-                  if (PreFocus)
-                    PreFocusStart();
-                }
               }
-              if (PreFocus)
-                PreFocusStop();
               Armed=false;
               #ifdef WITHLED
                 digitalWrite(LEDPin, LOW);
@@ -329,7 +321,7 @@ void loop()
               lcd.setCursor(0,1);
               lcd.print("Threshold:     ");
               lcd.setCursor(15,1);
-              if (BuiltInLightTriggerHorL)
+              if (BuiltinTriggerOnHigh)
                 lcd.print("H");
               else
                 lcd.print("L");              
@@ -339,12 +331,14 @@ void loop()
             }
             else
             {
+              if (PreFocus)
+                PreFocusStop();              
               lcd.setCursor(0,0);
               lcd.print("Light:         ");
               lcd.setCursor(0,1);
               lcd.print("Threshold:     ");
               lcd.setCursor(15,1);
-              if (BuiltInLightTriggerHorL)
+              if (BuiltinTriggerOnHigh)
                 lcd.print("H");
               else
                 lcd.print("L");                            
@@ -355,8 +349,6 @@ void loop()
           Light = map(analogRead(LightSensorPin),0,1023,1,100);
           lcd.setCursor(7,0);
           PrintDigits(Light,3);
-          lcd.setCursor(11,1);
-          PrintDigits(LightThreshold,3);
           if (Keypress() == RIGHTKEY)
           {
             LightThreshold+=1;
@@ -369,6 +361,8 @@ void loop()
             if (LightThreshold<1)
               LightThreshold=100;
           }
+          lcd.setCursor(11,1);
+          PrintDigits(LightThreshold,3);          
         }
         StandBy=true;
         ClearScreen();
@@ -381,7 +375,7 @@ void loop()
         Armed=false;
         lcd.setCursor(15,0);
         lcd.write(2);
-        while (Keypress() != BACKKEY)
+        while (!BackKey())
         {
           if (Keypress() == ENTERKEY)
           {
@@ -397,26 +391,16 @@ void loop()
               lcd.write(1);
               if (PreFocus)
                 PreFocusStart();
-              while (!Backkey())
+              while (!BackKey())
               {
-                if ((ExtTrigger) && (digitalRead(ExternalPin) == HIGH))
-                {
+                if ((ExtTriggerOnHigh) && (digitalRead(ExternalPin) == HIGH))
                   Trigger();
-                  if (PreFocus)
-                    PreFocusStart();
-                }
-                if ((!ExtTrigger) && (digitalRead(ExternalPin) == LOW))
-                {
+                if ((!ExtTriggerOnHigh) && (digitalRead(ExternalPin) == LOW))
                   Trigger();
-                  if (PreFocus)
-                    PreFocusStart();
-                }
               }
               #ifdef WITHLED
                 digitalWrite(LEDPin, LOW);
               #endif                              
-              if (PreFocus)
-                PreFocusStop();
               lcd.setCursor(0,1);
               lcd.print("Trigger on      ");
               Armed=false;
@@ -426,6 +410,8 @@ void loop()
             }
             else
             {
+              if (PreFocus)
+                PreFocusStop();              
               lcd.setCursor(0,1);
               lcd.print("Trigger on      ");
               lcd.setCursor(15,0);
@@ -434,8 +420,8 @@ void loop()
           }
           lcd.setCursor(11,1);
           if ((Keypress() == LEFTKEY) || (Keypress() == RIGHTKEY))
-            ExtTrigger=!(ExtTrigger);
-          if (ExtTrigger)
+            ExtTriggerOnHigh=!(ExtTriggerOnHigh);
+          if (ExtTriggerOnHigh)
             lcd.print("HIGH");
           else
             lcd.print("LOW ");
@@ -455,7 +441,7 @@ void loop()
         lcd.setCursor(15,0);
         lcd.write(2);
         Armed=false;
-        while (Keypress() != BACKKEY)
+        while (!BackKey())
         {
           if (Keypress() == ENTERKEY)
           {
@@ -468,6 +454,8 @@ void loop()
               lcd.setCursor(15,0);
               lcd.write(1);
               StartMillis=millis();
+              if (PreFocus)
+                PreFocusStart();
             }
             else
             {
@@ -482,10 +470,7 @@ void loop()
             if (remaining < 0)
               remaining = 0;
             PrintDigits(remaining,3);   
-            if (PreFocus)
-              PreFocusStart();
             if (remaining <= 1)
-//            if ((millis()-StartMillis)>=(tmpDelay*1000))
             {
               TriggerTimeLapse();
               StartMillis=millis();
@@ -493,6 +478,8 @@ void loop()
           }
           else
           {
+            if (PreFocus)
+              PreFocusStop();            
             #ifdef WITHLED
               digitalWrite(LEDPin, LOW);
             #endif                            
@@ -503,12 +490,12 @@ void loop()
           {
             tmpDelay-=1;
             if (tmpDelay<1)
-              tmpDelay=360;
+              tmpDelay=300;
           }
           if (Keypress() == RIGHTKEY)
           {
             tmpDelay+=1;
-            if (tmpDelay>360)
+            if (tmpDelay>300)
               tmpDelay=1;
           }
           lcd.setCursor(10,1);
@@ -527,7 +514,7 @@ void loop()
         lcd.setCursor(15,0);
         lcd.write(2);
         Armed=false;
-        while (Keypress() != BACKKEY)
+        while (!BackKey())
         {
           if (Keypress() == ENTERKEY)
           {
@@ -573,12 +560,12 @@ void loop()
           {
             tmpDelay-=1;
             if (tmpDelay<1)
-              tmpDelay=360;
+              tmpDelay=900;
           }
           if (Keypress() == RIGHTKEY)
           {
             tmpDelay+=1;
-            if (tmpDelay>360)
+            if (tmpDelay>900)
               tmpDelay=1;
           }
           lcd.setCursor(6,1);
@@ -597,7 +584,7 @@ void loop()
         lcd.write(2);
         Armed=false;  
         Limit = LimitTimes;
-        while (Keypress() != BACKKEY)
+        while (!BackKey())
         {
           if (Keypress() == ENTERKEY)
           {
@@ -613,7 +600,6 @@ void loop()
               lcd.print("Shooting!       ");
               StartMillis=millis();
               StayInside=true;
-//              Limit=1;
               while (StayInside)
               {
                 if (millis()-StartMillis>tmpDelay)
@@ -682,13 +668,13 @@ void loop()
         lcd.setCursor(0,1);
         PrintDigits(freeMemory(),4);
         lcd.print(" bytes free");
-        while (Keypress() != BACKKEY) {}; // Delay for Back key
+        while (!BackKey()) {}; // Delay for Back key
         lcd.clear();
         lcd.print("    (c) 2014    ");
         lcd.setCursor(0,1);
         lcd.print("Antonis Maglaras");
         delay(100);
-        while (Keypress() != BACKKEY) {}; // Delay for Back key     
+        while (!BackKey()) {}; // Delay for Back key     
         StandBy=true;
         ClearScreen();
         break;
@@ -737,7 +723,7 @@ void MainMenu()
       StayInside=false;
       Mode=MenuSelection;  
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
     {
       Mode=MenuSelection;
       ClearScreen();
@@ -759,25 +745,25 @@ byte Keypress()
 {
   if (digitalRead(LeftButton) == LOW)
   {
-    delay(30);
+    delay(ButtonDelay);
     return LEFTKEY;
   }
   else
     if (digitalRead(RightButton) == LOW)
     {
-      delay(30);
+      delay(ButtonDelay);
       return RIGHTKEY;
     }
     else
       if (digitalRead(EnterButton) == LOW)
       {
-        delay(50);
+        delay(ButtonDelay);
         return ENTERKEY;
       }
       else
         if (digitalRead(BackButton) == LOW)
         {
-          delay(50);
+          delay(ButtonDelay);
           return BACKKEY;
         }
         else
@@ -820,9 +806,9 @@ void Beep(byte x)
   for (int j=0; j<x; j++)
   {
     digitalWrite(BuzzerPin, HIGH);
-    delay(50);
+    delay(BuzzerDelay);
     digitalWrite(BuzzerPin, LOW);
-    delay(50);
+    delay(BuzzerDelay);
   }
 }
 
@@ -860,7 +846,7 @@ void SetupMenu()
         WriteToMem(12,0);     
      SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   lcd.clear();
@@ -922,7 +908,7 @@ void SetupMenu()
       WriteToMem(16,OptocouplersStatus);    
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   lcd.clear();
@@ -972,7 +958,7 @@ void SetupMenu()
       WriteToMem(10,CameraBrand);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   StayInside=true;
@@ -980,26 +966,26 @@ void SetupMenu()
   lcd.print("Light Trigger  ");
   lcd.setCursor(0,1);
   lcd.print("Trigger on     ");
-  boolean tmpBuiltInLightTriggerHorL=BuiltInLightTriggerHorL;
+  boolean tmpBuiltinTriggerOnHigh=BuiltinTriggerOnHigh;
   while (StayInside)
   {
     lcd.setCursor(11,1);
-    if (tmpBuiltInLightTriggerHorL)
+    if (tmpBuiltinTriggerOnHigh)
       lcd.print("HIGH");
     else
       lcd.print("LOW ");
     if ((Keypress() == LEFTKEY) != (Keypress() == RIGHTKEY))
-      tmpBuiltInLightTriggerHorL = !(tmpBuiltInLightTriggerHorL);
+      tmpBuiltinTriggerOnHigh = !(tmpBuiltinTriggerOnHigh);
     if (Keypress() == ENTERKEY)
     {
-      BuiltInLightTriggerHorL=tmpBuiltInLightTriggerHorL;
-      if (BuiltInLightTriggerHorL)
+      BuiltinTriggerOnHigh=tmpBuiltinTriggerOnHigh;
+      if (BuiltinTriggerOnHigh)
         WriteToMem(22,1);
       else
         WriteToMem(22,0);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   StayInside=true;
@@ -1007,26 +993,26 @@ void SetupMenu()
   lcd.print("Ext. Trigger   ");
   lcd.setCursor(0,1);
   lcd.print("Trigger on     ");
-  boolean tmpExtTrigger=ExtTrigger;
+  boolean tmpExtTriggerOnHigh=ExtTriggerOnHigh;
   while (StayInside)
   {
     lcd.setCursor(11,1);
-    if (tmpExtTrigger)
+    if (tmpExtTriggerOnHigh)
       lcd.print("HIGH");
     else
       lcd.print("LOW ");
     if ((Keypress() == LEFTKEY) != (Keypress() == RIGHTKEY))
-      tmpExtTrigger = !(tmpExtTrigger);
+      tmpExtTriggerOnHigh = !(tmpExtTriggerOnHigh);
     if (Keypress() == ENTERKEY)
     {
-      ExtTrigger=tmpExtTrigger;
-      if (ExtTrigger)
+      ExtTriggerOnHigh=tmpExtTriggerOnHigh;
+      if (ExtTriggerOnHigh)
         WriteToMem(26,1);
       else
         WriteToMem(26,0);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   lcd.clear();
@@ -1057,7 +1043,7 @@ void SetupMenu()
       WriteToMem(4,PreDelay);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   } 
   StayInside=true;
@@ -1088,7 +1074,7 @@ void SetupMenu()
       WriteToMem(6,ShutterDelay);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   StayInside=true;
@@ -1119,7 +1105,7 @@ void SetupMenu()
       WriteToMem(8,AfterDelay);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
     SettingsNotSaved();
   }
   StayInside=true;
@@ -1134,12 +1120,12 @@ void SetupMenu()
     {
       tmpTimeLapseExposure-=1;
       if (tmpTimeLapseExposure<1)
-        tmpTimeLapseExposure=360;
+        tmpTimeLapseExposure=300;
     }
     if (Keypress() == RIGHTKEY)
     {
       tmpTimeLapseExposure+=1;
-      if (tmpTimeLapseExposure>360)
+      if (tmpTimeLapseExposure>300)
         tmpTimeLapseExposure=1;
     }
     lcd.setCursor(9,1);
@@ -1150,7 +1136,7 @@ void SetupMenu()
       WriteToMem(24,TimeLapseExposure);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
     SettingsNotSaved();
   }
   StayInside=true;
@@ -1181,7 +1167,7 @@ void SetupMenu()
       WriteToMem(28,TimeLapseInterval);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
     SettingsNotSaved();
   }
   StayInside=true;
@@ -1204,7 +1190,7 @@ void SetupMenu()
       if (tmpHighSpeedDelay>100)
         tmpHighSpeedDelay=1;
     }
-    lcd.setCursor(7,1);
+    lcd.setCursor(8,1);
     PrintDigits(tmpHighSpeedDelay,3);
     if (Keypress() == ENTERKEY)
     {
@@ -1212,7 +1198,7 @@ void SetupMenu()
       WriteToMem(18,HighSpeedDelay);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   StayInside=true;
@@ -1226,14 +1212,14 @@ void SetupMenu()
     if (Keypress() == LEFTKEY)
     {
       tmpLimitTimes-=1;
-      if (tmpLimitTimes<1)
+      if (tmpLimitTimes<2)
         tmpLimitTimes=50;
     }
     if (Keypress() == RIGHTKEY)
     {
       tmpLimitTimes+=1;
       if (tmpLimitTimes>50)
-        tmpLimitTimes=1;
+        tmpLimitTimes=2;
     }
     lcd.setCursor(7,1);
     PrintDigits(tmpLimitTimes,2);
@@ -1243,7 +1229,7 @@ void SetupMenu()
       WriteToMem(20,LimitTimes);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   StayInside=true;
@@ -1274,7 +1260,7 @@ void SetupMenu()
       WriteToMem(14,ShortCut);         
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }
   lcd.clear();
@@ -1300,9 +1286,71 @@ void SetupMenu()
         WriteToMem(0,0);
       SettingsSaved();
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
       SettingsNotSaved();
   }  
+  StayInside=true;
+  lcd.clear();
+  lcd.print("Buzzer Delay    ");
+  lcd.setCursor(0,1);
+  lcd.print("Millis: ");
+  byte tmpBuzzerDelay=BuzzerDelay;
+  while (StayInside)
+  {
+    if (Keypress() == LEFTKEY)
+    {
+      tmpBuzzerDelay-=1;
+      if (tmpBuzzerDelay<10)
+        tmpBuzzerDelay=250;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      tmpBuzzerDelay+=1;
+      if (tmpBuzzerDelay>250)
+        tmpBuzzerDelay=10;
+    }
+    lcd.setCursor(8,1);
+    PrintDigits(tmpBuzzerDelay,3);
+    if (Keypress() == ENTERKEY)
+    {
+      BuzzerDelay=tmpBuzzerDelay;
+      WriteToMem(32,BuzzerDelay);
+      SettingsSaved();
+    }
+    if (BackKey())
+      SettingsNotSaved();
+  }
+  StayInside=true;
+  lcd.clear();
+  lcd.print("Button Delay    ");
+  lcd.setCursor(0,1);
+  lcd.print("Millis: ");
+  byte tmpButtonDelay=ButtonDelay;
+  while (StayInside)
+  {
+    if (Keypress() == LEFTKEY)
+    {
+      tmpButtonDelay-=1;
+      if (tmpButtonDelay<10)
+        tmpButtonDelay=250;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      tmpButtonDelay+=1;
+      if (tmpButtonDelay>250)
+        tmpButtonDelay=10;
+    }
+    lcd.setCursor(8,1);
+    PrintDigits(tmpButtonDelay,3);
+    if (Keypress() == ENTERKEY)
+    {
+      ButtonDelay=tmpButtonDelay;
+      WriteToMem(30,ButtonDelay);
+      SettingsSaved();
+    }
+    if (BackKey())
+      SettingsNotSaved();
+  }
   Mode=1;
   StandBy=true;
 }
@@ -1343,7 +1391,8 @@ int ReadFromMem(byte address)
 
 void PreFocusStart()
 {
-  digitalWrite(Optocoupler1Pin, HIGH);
+  if (Optocoupler1Enabled)
+    digitalWrite(Optocoupler1Pin, HIGH);
 }
 
 
@@ -1354,7 +1403,8 @@ void PreFocusStart()
 
 void PreFocusStop()
 {
-  digitalWrite(Optocoupler1Pin, LOW);
+  if (Optocoupler1Enabled)
+    digitalWrite(Optocoupler1Pin, LOW);
 }
 
 
@@ -1368,8 +1418,10 @@ void Trigger()
   if (PreDelay!=0)
     delay(PreDelay);
   if (!PreFocus)
+  {
     if (Optocoupler1Enabled)
       digitalWrite(Optocoupler1Pin, HIGH);
+  }
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
   ShootIR();
@@ -1393,8 +1445,10 @@ void TriggerTimeLapse()
   if (PreDelay!=0)
     delay(PreDelay);
   if (!PreFocus)
+  {
     if (Optocoupler1Enabled)
       digitalWrite(Optocoupler1Pin, HIGH);
+  }
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
   ShootIR();
@@ -1416,11 +1470,15 @@ void TriggerTimeLapse()
 
 void HighSpeedTrigger()
 {
-  digitalWrite(Optocoupler1Pin, HIGH);
-  digitalWrite(Optocoupler2Pin, HIGH);
+  if (Optocoupler1Enabled)
+    digitalWrite(Optocoupler1Pin, HIGH);
+  if (Optocoupler2Enabled)
+    digitalWrite(Optocoupler2Pin, HIGH);
   delay(HighSpeedDelay);
-  digitalWrite(Optocoupler1Pin, LOW);
-  digitalWrite(Optocoupler2Pin, LOW);
+  if (Optocoupler1Enabled)
+    digitalWrite(Optocoupler1Pin, LOW);
+  if (Optocoupler2Enabled)
+    digitalWrite(Optocoupler2Pin, LOW);
 }
 
 
@@ -1430,9 +1488,10 @@ void HighSpeedTrigger()
 
 void StartBulb()
 {
-//  OlympusCamera.shutterNow();
-  digitalWrite(Optocoupler1Pin, HIGH);
-  digitalWrite(Optocoupler2Pin, HIGH);
+  if (Optocoupler1Enabled)
+    digitalWrite(Optocoupler1Pin, HIGH);
+  if (Optocoupler2Enabled)
+    digitalWrite(Optocoupler2Pin, HIGH);
   if (MakeSounds)
     Beep(1);
 }
@@ -1444,8 +1503,10 @@ void StartBulb()
 
 void StopBulb()
 {
-  digitalWrite(Optocoupler1Pin, LOW);
-  digitalWrite(Optocoupler2Pin, LOW);
+  if (Optocoupler1Enabled)
+    digitalWrite(Optocoupler1Pin, LOW);
+  if (Optocoupler2Enabled)
+    digitalWrite(Optocoupler2Pin, LOW);
   delay(AfterDelay);
   if (MakeSounds)
     Beep(2);
@@ -1457,7 +1518,7 @@ void StopBulb()
 // --- BACKKEY function ------------------------------------------------------------------------------------------------------------------------------
 // For faster checking for back keypress.
 
-boolean Backkey()
+boolean BackKey()
 {
   if (digitalRead(BackButton)==LOW)
     return true;
@@ -1509,20 +1570,22 @@ void FactoryReset()
           WriteToMem(24,1);
           WriteToMem(26,1);
           WriteToMem(28,15);
+          WriteToMem(30,50);
+          WriteToMem(32,50);
           lcd.setCursor(0,1);
           lcd.print("Done!           ");
           Beep(3);
           delay(1000);
           SoftReset();
         }
-        if (Keypress() == BACKKEY)
+        if (BackKey())
         {
           StayInside=false;
           StayInside2=false;
         }      
       }
     }
-    if (Keypress() == BACKKEY)
+    if (BackKey())
     {
       StayInside=false;
       return;
@@ -1607,8 +1670,8 @@ void ShootIR()
 
 
 
-// --- Shoot using Infrared --------------------------------------------------------------------------------------------------------------------------
-// Trigger the selected camera using Infrared.
+// --- Clear Screen ----------------------------------------------------------------------------------------------------------------------------------
+// Show the start screen.                            
 
 void ClearScreen()
 {
@@ -1618,3 +1681,14 @@ void ClearScreen()
   lcd.setCursor(0,1);
   lcd.print("Ready!          ");        
 }
+
+
+
+// --- Show Ready Line -------------------------------------------------------------------------------------------------------------------------------
+// Show ready.                                       
+
+void ShowReady()
+{
+  lcd.setCursor(0,1);
+  lcd.print("Ready!          ");    
+}  
