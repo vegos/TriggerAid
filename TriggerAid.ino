@@ -39,35 +39,35 @@
 #include <EEPROM.h>                       // Arduino included Library
 #include <multiCameraIrControl.h>         // http://sebastian.setz.name/arduino/my-libraries/multi-camera-ir-control/
 
+
+
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-#define  Version         "2.1.5"          // Current Version
+#define  Version         "2.1.6"          // Current Version
+//#define CUSTOMMESSAGE    "0123456789012345"        // Custom Message (16 characters) -- To display the message, uncomment this line.
 
-//#define CUSTOMMESSAGE    "0123456789012345"        // Custom Message (16 characters)
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
 byte ONChar[8] =  { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
 byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B00000 };
 
-
-
-// Translate button names to numbers for easier recognition
+// Definition of buttons
 #define  LEFTKEY            1
 #define  RIGHTKEY           2
 #define  ENTERKEY           3
 #define  BACKKEY            4
 #define  SHOOTKEY           5
-#define  NONEKEY            0
+#define  NOKEY              0
 
 // Definition of pins used by Arduino
-#define  IRLedPin          10      // For IR transmitting
+#define  IRLedPin          10      // For Infrared triggering
 #define  LightSensorPin    A1      // Built-in Light trigger
 #define  ExternalPin        8      // External (digital) sensor pin
 #define  BuzzerPin         A0      // Buzzer -- I used a PWM pin. Maybe in next version it will play some music :)
-#define  RightButton       A3      // Button Right Pin
-#define  BackButton         6      // Buton Back Pin
-#define  LeftButton        A4      // Button Left Pin
-#define  EnterButton       A2      // Button Enter Pin
-#define  ShootButton        7      // Button Shoot Pin
+#define  LeftButton        A4      // Left Button Pin
+#define  RightButton       A3      // Right Button Pin
+#define  EnterButton       A2      // Enter Button Pin
+#define  BackButton         6      // Back Button Pin
+#define  ShootButton        7      // Shoot Button Pin
 #define  Optocoupler1Pin   13      // Optocoupler 1 is used for focus triggering    \____ Olympus E-3 (the camera that I make the testing
 #define  Optocoupler2Pin    9      // Optocoupler 2 is used for shutter triggering  /     needs focus & shutter to be triggered together (at least).
                                    //                                                     With that setup, it's possible to trigger two (2) external
@@ -140,6 +140,7 @@ void setup()
   pinMode(ExternalPin, INPUT);
   pinMode(Optocoupler1Pin, OUTPUT);
   pinMode(Optocoupler2Pin, OUTPUT);
+  pinMode(ShootButton, INPUT);  digitalWrite(ShootButton,HIGH);
   // Read settings from EEPROM
   if (ReadFromMem(0)==1)
     MakeSounds=true;
@@ -214,9 +215,7 @@ void loop()
     {
       lcd.setCursor(0,1);
       lcd.print("Shooting...     ");
-      StartBulb();
-      while (Keypress() == SHOOTKEY);
-      StopBulb();
+      Trigger();
       ClearScreen();
     }
     // On BACK key pressed for 3 seconds, go to shortcut
@@ -294,7 +293,7 @@ void loop()
                   Trigger();
               }
               if (PreFocus)
-                PreFocusStop();                            
+                PreFocusStop();
               Armed=false;
               lcd.setCursor(0,0);
               lcd.print("Light:         ");
@@ -311,8 +310,6 @@ void loop()
             }
             else
             {
-              if (PreFocus)
-                PreFocusStop();              
               lcd.setCursor(0,0);
               lcd.print("Light:         ");
               lcd.setCursor(0,1);
@@ -344,6 +341,8 @@ void loop()
           lcd.setCursor(11,1);
           PrintDigits(LightThreshold,3);          
         }
+        if (PreFocus)
+          PreFocusStop();                      
         StandBy=true;
         ClearScreen();
         break;
@@ -362,12 +361,12 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
+              if (PreFocus)
+                PreFocusStart();
               lcd.setCursor(0,1);
               lcd.print("Active!        ");
               lcd.setCursor(15,0);
               lcd.write(1);
-              if (PreFocus)
-                PreFocusStart();
               while (!BackKey())
               {
                 if ((ExtTriggerOnHigh) && (digitalRead(ExternalPin) == HIGH))
@@ -375,8 +374,6 @@ void loop()
                 if ((!ExtTriggerOnHigh) && (digitalRead(ExternalPin) == LOW))
                   Trigger();
               }
-              if (PreFocus)
-                PreFocusStop();                                          
               lcd.setCursor(0,1);
               lcd.print("Trigger on      ");
               Armed=false;
@@ -424,11 +421,11 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
+              if (PreFocus)
+                PreFocusStart();
               lcd.setCursor(15,0);
               lcd.write(1);
               StartMillis=millis();
-              if (PreFocus)
-                PreFocusStart();
             }
             else
             {
@@ -453,8 +450,6 @@ void loop()
           }
           else
           {
-            if (PreFocus)
-              PreFocusStop();            
             lcd.setCursor(11,0);
             lcd.print("   ");
           }
@@ -472,7 +467,9 @@ void loop()
           }
           lcd.setCursor(10,1);
           PrintDigits(tmpDelay,3);          
-        }
+        }    
+        if (PreFocus)    
+          PreFocusStop();
         StandBy=true;
         ClearScreen();
         break;
@@ -537,6 +534,7 @@ void loop()
           lcd.setCursor(6,1);
           PrintDigits(tmpDelay,3);
         }
+        StopBulb();
         StandBy=true;
         ClearScreen();
         break;
@@ -622,6 +620,7 @@ void loop()
         ClearScreen();
         break;
       case 7:
+        long result;
         lcd.clear();
         lcd.print("Version: ");
         lcd.print(Version);
@@ -629,11 +628,30 @@ void loop()
         PrintDigits(freeMemory(),4);
         lcd.print(" bytes free");
         while (!BackKey()) {}; // Delay for Back key
+        delay(200);
+        lcd.clear();
+        lcd.print("Voltage:");
+        while (!BackKey()) 
+        {
+          // Read 1.1V reference against AVcc
+          ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+          delay(2); // Wait for Vref to settle
+          ADCSRA |= _BV(ADSC); // Convert
+          while (bit_is_set(ADCSRA,ADSC));
+          result = ADCL;
+          result |= ADCH<<8;
+          result = 1126400L / result; // Back-calculate AVcc in mV        
+          lcd.setCursor(0,1);
+          lcd.print(result,DEC);
+          lcd.print(" mV     ");
+          delay(100);
+        }
+        delay(200);
         lcd.clear();
         lcd.print("    (c) 2014    ");
         lcd.setCursor(0,1);
         lcd.print("Antonis Maglaras");
-        delay(100);
+        delay(200);
         while (!BackKey()) {}; // Delay for Back key     
         StandBy=true;
         ClearScreen();
@@ -732,7 +750,7 @@ byte Keypress()
             return SHOOTKEY;
           }
           else
-            return NONEKEY;
+            return NOKEY;
 }
 
 
@@ -1392,7 +1410,7 @@ void Trigger()
     digitalWrite(Optocoupler2Pin, HIGH);
   ShootIR();
   delay(ShutterDelay);  
-  if (Optocoupler1Enabled)
+  if ((!PreFocus) && (Optocoupler1Enabled))
     digitalWrite(Optocoupler1Pin, LOW);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, LOW);
@@ -1417,7 +1435,7 @@ void TriggerTimeLapse()
   ShootIR();
   for (int x=0; x<TimeLapseExposure; x++)
     delay(1000);  
-  if (Optocoupler1Enabled)
+  if ((!PreFocus) && (Optocoupler1Enabled))
     digitalWrite(Optocoupler1Pin, LOW);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, LOW);
@@ -1644,3 +1662,4 @@ void ClearScreen()
   lcd.setCursor(0,1);
   lcd.print("Ready!          ");        
 }
+
