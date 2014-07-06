@@ -41,9 +41,8 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-#define  Version         "2.1.4"          // Current Version
+#define  Version         "2.1.5"          // Current Version
 
-//#define WITHLED                           // For PCB v2.0 or with no LED installed, remark this line
 //#define CUSTOMMESSAGE    "0123456789012345"        // Custom Message (16 characters)
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
 byte ONChar[8] =  { B00000, B01110, B11111, B11111, B11111, B01110, B00000, B00000 };
@@ -62,20 +61,13 @@ byte OFFChar[8] = { B00000, B01110, B10001, B10001, B10001, B01110, B00000, B000
 // Definition of pins used by Arduino
 #define  IRLedPin          10      // For IR transmitting
 #define  LightSensorPin    A1      // Built-in Light trigger
-
-#ifdef WITHLED
-  #define  LEDPin          A5      // LED Pin - On when triggering is active
-#endif
-
 #define  ExternalPin        8      // External (digital) sensor pin
-#define  BuzzerPin         A0      // Buzzer -- I used a PWM pin. Maybe in next version will play some music :)
-
+#define  BuzzerPin         A0      // Buzzer -- I used a PWM pin. Maybe in next version it will play some music :)
 #define  RightButton       A3      // Button Right Pin
 #define  BackButton         6      // Buton Back Pin
 #define  LeftButton        A4      // Button Left Pin
 #define  EnterButton       A2      // Button Enter Pin
 #define  ShootButton        7      // Button Shoot Pin
-
 #define  Optocoupler1Pin   13      // Optocoupler 1 is used for focus triggering    \____ Olympus E-3 (the camera that I make the testing
 #define  Optocoupler2Pin    9      // Optocoupler 2 is used for shutter triggering  /     needs focus & shutter to be triggered together (at least).
                                    //                                                     With that setup, it's possible to trigger two (2) external
@@ -148,9 +140,6 @@ void setup()
   pinMode(ExternalPin, INPUT);
   pinMode(Optocoupler1Pin, OUTPUT);
   pinMode(Optocoupler2Pin, OUTPUT);
-  #ifdef WITHLED 
-    pinMode(LEDPin, OUTPUT);
-  #endif  
   // Read settings from EEPROM
   if (ReadFromMem(0)==1)
     MakeSounds=true;
@@ -206,7 +195,8 @@ void setup()
   StandBy=true;
   if (MakeSounds)
     Beep(1);
-  ShowReady();
+  lcd.setCursor(0,1);
+  lcd.print("Ready!          ");    
 }
 
 
@@ -222,18 +212,12 @@ void loop()
     // On SHOOT key press, start bulb shooting
     if (Keypress() == SHOOTKEY)
     {
-      #ifdef WITHLED
-        digitalWrite(LEDPin, HIGH);
-      #endif        
       lcd.setCursor(0,1);
-      lcd.print("Bulb Shooting...");
+      lcd.print("Shooting...     ");
       StartBulb();
       while (Keypress() == SHOOTKEY);
       StopBulb();
-      ShowReady();
-      #ifdef WITHLED
-        digitalWrite(LEDPin, LOW);
-      #endif       
+      ClearScreen();
     }
     // On BACK key pressed for 3 seconds, go to shortcut
     if (BackKey())
@@ -295,9 +279,6 @@ void loop()
             {
               if (PreFocus)
                 PreFocusStart();
-              #ifdef WITHLED
-                digitalWrite(LEDPin, HIGH);
-              #endif                
               lcd.setCursor(0,0);
               lcd.print("Light Trigger  ");
               lcd.setCursor(0,1);
@@ -312,10 +293,9 @@ void loop()
                 if ((Light<LightThreshold) && !(BuiltinTriggerOnHigh))
                   Trigger();
               }
+              if (PreFocus)
+                PreFocusStop();                            
               Armed=false;
-              #ifdef WITHLED
-                digitalWrite(LEDPin, LOW);
-              #endif                              
               lcd.setCursor(0,0);
               lcd.print("Light:         ");
               lcd.setCursor(0,1);
@@ -382,9 +362,6 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
-              #ifdef WITHLED
-                digitalWrite(LEDPin, HIGH);
-              #endif                              
               lcd.setCursor(0,1);
               lcd.print("Active!        ");
               lcd.setCursor(15,0);
@@ -398,9 +375,8 @@ void loop()
                 if ((!ExtTriggerOnHigh) && (digitalRead(ExternalPin) == LOW))
                   Trigger();
               }
-              #ifdef WITHLED
-                digitalWrite(LEDPin, LOW);
-              #endif                              
+              if (PreFocus)
+                PreFocusStop();                                          
               lcd.setCursor(0,1);
               lcd.print("Trigger on      ");
               Armed=false;
@@ -448,9 +424,6 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
-              #ifdef WITHLED
-                digitalWrite(LEDPin, HIGH);
-              #endif                              
               lcd.setCursor(15,0);
               lcd.write(1);
               StartMillis=millis();
@@ -459,6 +432,8 @@ void loop()
             }
             else
             {
+              if (PreFocus)
+                PreFocusStop();                                          
               lcd.setCursor(15,0);
               lcd.write(2);
             }
@@ -480,9 +455,6 @@ void loop()
           {
             if (PreFocus)
               PreFocusStop();            
-            #ifdef WITHLED
-              digitalWrite(LEDPin, LOW);
-            #endif                            
             lcd.setCursor(11,0);
             lcd.print("   ");
           }
@@ -521,9 +493,6 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
-              #ifdef WITHLED
-                digitalWrite(LEDPin, HIGH);
-              #endif                              
               lcd.setCursor(15,0);
               lcd.write(1);
               StartMillis=millis();
@@ -543,9 +512,6 @@ void loop()
             if ((millis()-StartMillis)>=(tmpDelay*1000))
             {
               StopBulb();
-              #ifdef WITHLED
-                digitalWrite(LEDPin, LOW);
-              #endif                              
               Armed=false;
               lcd.setCursor(15,0);
               lcd.write(2);
@@ -591,9 +557,6 @@ void loop()
             Armed = !(Armed);
             if (Armed)
             {
-              #ifdef WITHLED
-                digitalWrite(LEDPin, HIGH);
-              #endif                              
               lcd.setCursor(15,0);
               lcd.write(1);
               lcd.setCursor(0,1);
@@ -617,7 +580,7 @@ void loop()
                   }
                   StartMillis=millis();
                 }
-                if (digitalRead(BackButton)==LOW)
+                if (BackKey())
                 {
                   lcd.setCursor(15,0);
                   lcd.write(2);
@@ -627,9 +590,6 @@ void loop()
                   lcd.print("Interval:     ms");
                 }
               }
-              #ifdef WITHLED
-                digitalWrite(LEDPin, HIGH);
-              #endif                
             }
             else
             {
@@ -803,11 +763,20 @@ void PrintDigits(int x, int y)
 
 void Beep(byte x)
 {
+/*
   for (int j=0; j<x; j++)
   {
     digitalWrite(BuzzerPin, HIGH);
     delay(BuzzerDelay);
     digitalWrite(BuzzerPin, LOW);
+    delay(BuzzerDelay);
+  }
+*/
+  for (byte j=0; j<x; j++)
+  {
+    tone(BuzzerPin, 440);
+    delay(BuzzerDelay);
+    noTone(BuzzerPin);
     delay(BuzzerDelay);
   }
 }
@@ -1417,11 +1386,8 @@ void Trigger()
 {
   if (PreDelay!=0)
     delay(PreDelay);
-  if (!PreFocus)
-  {
-    if (Optocoupler1Enabled)
-      digitalWrite(Optocoupler1Pin, HIGH);
-  }
+  if ((!PreFocus) && (Optocoupler1Enabled))
+    digitalWrite(Optocoupler1Pin, HIGH);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
   ShootIR();
@@ -1444,11 +1410,8 @@ void TriggerTimeLapse()
 {
   if (PreDelay!=0)
     delay(PreDelay);
-  if (!PreFocus)
-  {
-    if (Optocoupler1Enabled)
-      digitalWrite(Optocoupler1Pin, HIGH);
-  }
+  if ((!PreFocus) && (Optocoupler1Enabled))
+    digitalWrite(Optocoupler1Pin, HIGH);
   if (Optocoupler2Enabled)
     digitalWrite(Optocoupler2Pin, HIGH);
   ShootIR();
@@ -1681,14 +1644,3 @@ void ClearScreen()
   lcd.setCursor(0,1);
   lcd.print("Ready!          ");        
 }
-
-
-
-// --- Show Ready Line -------------------------------------------------------------------------------------------------------------------------------
-// Show ready.                                       
-
-void ShowReady()
-{
-  lcd.setCursor(0,1);
-  lcd.print("Ready!          ");    
-}  
