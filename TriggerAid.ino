@@ -24,10 +24,10 @@
 //     20 - Highspeed Limit (2..50 times)
 //     22 - Built-in Light Trigger on High/Low (1/0 / True/False)
 //     26 - External Trigger on High/Low (1/0 / True/False)
-//     24 - Timelapse Exposure (1..300 seconds / 5 min)
-//     28 - Timelapse Interval (1..300 seconds / 5 min)
+//     24 - Timelapse Exposure (1..300 seconds / 5 min) -- Currently Disabled
+//     28 - Timelapse Interval (1..900 seconds / 15 min)
 //     30 - Button Delay (10..250 ms)
-//     32 - Buzzer Delay (10..250 ms)
+//     32 - Buzzer Duration (10..250 ms)
 //
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -43,7 +43,7 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-#define  Version         "2.1.6"          // Current Version
+#define  Version         "2.1.7"          // Current Version
 //#define CUSTOMMESSAGE    "0123456789012345"        // Custom Message (16 characters) -- To display the message, uncomment this line.
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -104,7 +104,7 @@ boolean Armed = false;
 boolean MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltinTriggerOnHigh, ExtTriggerOnHigh;
 boolean StayInside = false;
 byte HighSpeedDelay, LimitTimes, ButtonDelay, BuzzerDelay;
-int PreDelay, ShutterDelay, AfterDelay, Limit, TimeLapseExposure, TimeLapseInterval;
+int PreDelay, ShutterDelay, AfterDelay, Limit, TimeLapseInterval; // TimeLapseExposure;
 int tmpDelay;
 long StartMillis;
 
@@ -166,7 +166,7 @@ void setup()
     ExtTriggerOnHigh=true;
   else
     ExtTriggerOnHigh=false;
-  TimeLapseExposure=ReadFromMem(24);
+//  TimeLapseExposure=ReadFromMem(24);
   TimeLapseInterval=ReadFromMem(28);
   BuzzerDelay=ReadFromMem(32);
   ButtonDelay=ReadFromMem(30);
@@ -444,7 +444,7 @@ void loop()
             PrintDigits(remaining,3);   
             if (remaining <= 1)
             {
-              TriggerTimeLapse();
+              Trigger();
               StartMillis=millis();
             }
           }
@@ -601,12 +601,12 @@ void loop()
           {
             tmpDelay-=1;
             if (tmpDelay<1)
-              tmpDelay=500;
+              tmpDelay=900;
           }
           if (Keypress() == RIGHTKEY)
           {
             tmpDelay+=1;
-            if (tmpDelay>500)
+            if (tmpDelay>900)
               tmpDelay=1;
           }
           lcd.setCursor(10,1);
@@ -1095,6 +1095,7 @@ void SetupMenu()
     if (BackKey())
     SettingsNotSaved();
   }
+/*  
   StayInside=true;
   lcd.clear();
   lcd.print("Timelapse Exposr");
@@ -1126,6 +1127,7 @@ void SetupMenu()
     if (BackKey())
     SettingsNotSaved();
   }
+*/  
   StayInside=true;
   lcd.clear();
   lcd.print("Timelapse Intrvl");
@@ -1138,12 +1140,12 @@ void SetupMenu()
     {
       tmpTimeLapseInterval-=1;
       if (tmpTimeLapseInterval<1)
-        tmpTimeLapseInterval=360;
+        tmpTimeLapseInterval=900;
     }
     if (Keypress() == RIGHTKEY)
     {
       tmpTimeLapseInterval+=1;
-      if (tmpTimeLapseInterval>360)
+      if (tmpTimeLapseInterval>900)
         tmpTimeLapseInterval=1;
     }
     lcd.setCursor(9,1);
@@ -1278,7 +1280,7 @@ void SetupMenu()
   }  
   StayInside=true;
   lcd.clear();
-  lcd.print("Buzzer Delay    ");
+  lcd.print("Buzzer Duration ");
   lcd.setCursor(0,1);
   lcd.print("Millis: ");
   byte tmpBuzzerDelay=BuzzerDelay;
@@ -1421,6 +1423,7 @@ void Trigger()
 
 
 
+/*
 // --- TRIGGER TimeLapse -----------------------------------------------------------------------------------------------------------------------------
 // Trigger the camera.
 
@@ -1442,6 +1445,7 @@ void TriggerTimeLapse()
   if (MakeSounds)
     Beep(3);
 }
+*/
 
 
 
@@ -1662,4 +1666,3 @@ void ClearScreen()
   lcd.setCursor(0,1);
   lcd.print("Ready!          ");        
 }
-
