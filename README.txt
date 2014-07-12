@@ -44,9 +44,11 @@ Modes:
 -> External Trigger (for connecting (digital-output) sound/light/etc modules).
 -> Bulb mode.
 -> High Speed Burst Flash Triggering (1-100ms, for 1-50 times).
--> Manual Shoot (bulb) mode.
+-> Self timer (1-120 seconds)
+-> Manual Shoot mode.
 -> Setup Menu for storing default parameters (on EEPROM).
 
 
 
 To be continued... 
+(or better, read the User Manual)
