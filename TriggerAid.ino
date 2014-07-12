@@ -28,6 +28,7 @@
 //     28 - Timelapse Interval (1..900 seconds / 15 min)
 //     30 - Button Delay (10..250 ms)
 //     32 - Buzzer Duration (10..250 ms)
+//     34 - Self Timer (1..120 seconds)
 //
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -43,7 +44,7 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-#define  Version         "2.1.7"          // Current Version
+#define  Version         "2.1.8"          // Current Version
 //#define CUSTOMMESSAGE    "0123456789012345"        // Custom Message (16 characters) -- To display the message, uncomment this line.
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -82,16 +83,17 @@ Canon CanonCamera(IRLedPin);       // /
 
 
 // Main Menu Strings
-char* MenuItems[9] = { "",
-                       "Light Trigger   ",    // Mode 1: Built-in light trigger
-                       "External Trigger",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
-                       "Time-Lapse      ",    // Mode 3: Time lapse. Exposure is available on setup menu (for use with Bulb mode, only on wired triggers).
-                       "Bulb Mode       ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
-                       "High Speed Burst",    // Mode 5: High Speed Burst mode (For flash units, as I guess that there are no cameras so fast).
-                       "Setup           ",    // Mode 6: Setup System (Delays, Buzzer, Triggers)
-                       "Information     ",    // Mode 7: Version information, memory free, etc.
-                       "Factory Reset   ",    // Mode 8: Factory Reset.
-                      };
+char* MenuItems[10] = { "",
+                        "Light Trigger   ",    // Mode 1: Built-in light trigger
+                        "External Trigger",    // Mode 2: External Trigger (works with digital modules, like a sound or light module.
+                        "Time-Lapse      ",    // Mode 3: Time lapse. Exposure is available on setup menu (for use with Bulb mode, only on wired triggers).
+                        "Bulb Mode       ",    // Mode 4: Bulb mode (My camera can't keep the shutter for more than 60 secs, so that way I can go up to 8 minutes!
+                        "High Speed Burst",    // Mode 5: High Speed Burst mode (For flash units, as I guess that there are no cameras so fast).
+                        "Self Timer      ",    // Mode 6: Self Timer
+                        "Setup           ",    // Mode 7: Setup System (Delays, Buzzer, Triggers)
+                        "Information     ",    // Mode 8: Version information, memory free, etc.
+                        "Factory Reset   ",    // Mode 9: Factory Reset.
+                       };
 
 
 // Definition of global variables
@@ -104,6 +106,7 @@ boolean Armed = false;
 boolean MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltinTriggerOnHigh, ExtTriggerOnHigh;
 boolean StayInside = false;
 byte HighSpeedDelay, LimitTimes, ButtonDelay, BuzzerDelay;
+byte tmpSelfTimer, SelfTimer;
 int PreDelay, ShutterDelay, AfterDelay, Limit, TimeLapseInterval; // TimeLapseExposure;
 int tmpDelay;
 long StartMillis;
@@ -170,6 +173,9 @@ void setup()
   TimeLapseInterval=ReadFromMem(28);
   BuzzerDelay=ReadFromMem(32);
   ButtonDelay=ReadFromMem(30);
+  SelfTimer=ReadFromMem(34);
+  if ((SelfTimer<1) || (SelfTimer>120))
+    SelfTimer=12;
   if (ButtonDelay == 0)                    // Check for zero delay on keys and set it to 50
     ButtonDelay = 50;
   switch (OptocouplersStatus)
@@ -442,7 +448,7 @@ void loop()
             if (remaining < 0)
               remaining = 0;
             PrintDigits(remaining,3);   
-            if (remaining <= 1)
+            if (remaining < 1)
             {
               Trigger();
               StartMillis=millis();
@@ -616,10 +622,82 @@ void loop()
         ClearScreen();
         break;
       case 6:
-        SetupMenu();
+        lcd.clear();
+        lcd.print("Self Timer      ");
+        lcd.setCursor(0,1);
+        lcd.print("Delay:     secs ");
+        tmpSelfTimer=SelfTimer;
+        lcd.setCursor(7,1);
+        PrintDigits(tmpSelfTimer,3);
+        StartMillis=millis();
+        lcd.setCursor(15,0);
+        lcd.write(2);
+        Armed=false;
+        while (!BackKey())
+        {
+          if (Keypress() == ENTERKEY)
+          {
+            Armed = !(Armed);
+            if (Armed)
+            {
+              if (PreFocus)
+                PreFocusStart();
+              lcd.setCursor(15,0);
+              lcd.write(1);
+              StartMillis=millis();
+              while ((!BackKey()) && (Armed))
+              {
+                long remaining = (tmpSelfTimer-((millis()-StartMillis)/1000));
+                lcd.setCursor(7,1);
+                if (remaining < 0)
+                  remaining = 0;
+                PrintDigits(remaining,3);   
+                if (remaining < 1)
+                {
+                  Trigger();
+                  Armed = false;
+                  StartMillis=millis();
+                }
+              }
+              Armed = false;
+              lcd.setCursor(15,0);
+              lcd.write(2);              
+            }
+            else
+            {
+              if (PreFocus)
+                PreFocusStop();                                          
+              lcd.setCursor(15,0);
+              lcd.write(2);
+              lcd.setCursor(7,1);
+              lcd.print(tmpSelfTimer);
+            }
+          }
+          if (Keypress() == LEFTKEY)
+          {
+            tmpSelfTimer-=1;
+            if (tmpSelfTimer<1)
+              tmpSelfTimer=120;
+          }
+          if (Keypress() == RIGHTKEY)
+          {
+            tmpSelfTimer+=1;
+            if (tmpSelfTimer>120)
+              tmpSelfTimer=1;
+          }
+          lcd.setCursor(7,1);
+          PrintDigits(tmpSelfTimer,3);          
+        }    
+        if (PreFocus)    
+          PreFocusStop();
+        StandBy=true;
         ClearScreen();
         break;
       case 7:
+        SetupMenu();
+        ClearScreen();
+        break;
+      case 8:
         long result;
         lcd.clear();
         lcd.print("Version: ");
@@ -656,7 +734,7 @@ void loop()
         StandBy=true;
         ClearScreen();
         break;
-      case 8:
+      case 9:
         FactoryReset();
         StandBy=true;
         ClearScreen();
@@ -686,14 +764,14 @@ void MainMenu()
     if (Keypress() == RIGHTKEY)
     {
       MenuSelection+=1;
-      if (MenuSelection>8)
+      if (MenuSelection>9)
         MenuSelection=1;
     }
     if (Keypress() == LEFTKEY)
     {
       MenuSelection-=1;
       if (MenuSelection<1)
-        MenuSelection=8;
+        MenuSelection=9;
     }
     if (Keypress() == ENTERKEY)
     {
@@ -1095,39 +1173,6 @@ void SetupMenu()
     if (BackKey())
     SettingsNotSaved();
   }
-/*  
-  StayInside=true;
-  lcd.clear();
-  lcd.print("Timelapse Exposr");
-  lcd.setCursor(0,1);
-  lcd.print("Seconds: ");
-  int tmpTimeLapseExposure=TimeLapseExposure;
-  while (StayInside)
-  {
-    if (Keypress() == LEFTKEY)
-    {
-      tmpTimeLapseExposure-=1;
-      if (tmpTimeLapseExposure<1)
-        tmpTimeLapseExposure=300;
-    }
-    if (Keypress() == RIGHTKEY)
-    {
-      tmpTimeLapseExposure+=1;
-      if (tmpTimeLapseExposure>300)
-        tmpTimeLapseExposure=1;
-    }
-    lcd.setCursor(9,1);
-    PrintDigits(tmpTimeLapseExposure,3);
-    if (Keypress() == ENTERKEY)
-    {
-      TimeLapseExposure=tmpTimeLapseExposure;
-      WriteToMem(24,TimeLapseExposure);
-      SettingsSaved();
-    }
-    if (BackKey())
-    SettingsNotSaved();
-  }
-*/  
   StayInside=true;
   lcd.clear();
   lcd.print("Timelapse Intrvl");
@@ -1221,6 +1266,37 @@ void SetupMenu()
     if (BackKey())
       SettingsNotSaved();
   }
+  StayInside=true;
+  lcd.clear();
+  lcd.print("Self Timer      ");
+  lcd.setCursor(0,1);
+  lcd.print("Seconds: ");
+  byte tmpSelfTimer=SelfTimer;
+  while (StayInside)
+  {
+    if (Keypress() == LEFTKEY)
+    {
+      tmpSelfTimer-=1;
+      if (tmpSelfTimer<1)
+        tmpSelfTimer=120;
+    }
+    if (Keypress() == RIGHTKEY)
+    {
+      tmpSelfTimer+=1;
+      if (tmpSelfTimer>120)
+        tmpSelfTimer=1;
+    }
+    lcd.setCursor(9,1);
+    PrintDigits(tmpSelfTimer,3);
+    if (Keypress() == ENTERKEY)
+    {
+      SelfTimer=tmpSelfTimer;
+      WriteToMem(34,SelfTimer);
+      SettingsSaved();
+    }
+    if (BackKey())
+    SettingsNotSaved();
+  }  
   StayInside=true;
   int ShortCutTemp=ShortCut;
   lcd.clear();
@@ -1557,6 +1633,7 @@ void FactoryReset()
           WriteToMem(28,15);
           WriteToMem(30,50);
           WriteToMem(32,50);
+          WriteToMem(34,12);
           lcd.setCursor(0,1);
           lcd.print("Done!           ");
           Beep(3);
