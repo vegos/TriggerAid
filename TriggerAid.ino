@@ -44,7 +44,7 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-#define  Version         "2.1.8"          // Current Version
+#define  Version         "2.1.9"          // Current Version
 //#define CUSTOMMESSAGE    "0123456789012345"        // Custom Message (16 characters) -- To display the message, uncomment this line.
 
 // Create two (2) custom characters (for visual identification of armed/disarmed mode)
@@ -81,7 +81,6 @@ Nikon NikonCamera(IRLedPin);       //   >--- Create instances of camera types on
 Sony SonyCamera(IRLedPin);         //  /
 Canon CanonCamera(IRLedPin);       // /
 
-
 // Main Menu Strings
 char* MenuItems[10] = { "",
                         "Light Trigger   ",    // Mode 1: Built-in light trigger
@@ -95,7 +94,6 @@ char* MenuItems[10] = { "",
                         "Factory Reset   ",    // Mode 9: Factory Reset.
                        };
 
-
 // Definition of global variables
 byte CameraBrand = 1;
 byte MenuSelection = 1;
@@ -107,10 +105,10 @@ boolean MakeSounds, PreFocus, Optocoupler1Enabled, Optocoupler2Enabled, BuiltinT
 boolean StayInside = false;
 byte HighSpeedDelay, LimitTimes, ButtonDelay, BuzzerDelay;
 byte tmpSelfTimer, SelfTimer;
+byte Ext2;
 int PreDelay, ShutterDelay, AfterDelay, Limit, TimeLapseInterval; // TimeLapseExposure;
 int tmpDelay;
 long StartMillis;
-
 
 
 
@@ -127,12 +125,6 @@ void setup()
   lcd.print("   TriggerAid   ");
   lcd.setCursor(0,1);
   lcd.print("Antonis Maglaras");
-  delay(1000);
-  #ifdef CUSTOMMESSAGE
-    lcd.setCursor(0,1);
-    lcd.print(CUSTOMMESSAGE);
-    delay(1000);
-  #endif
   // Setup pins
   pinMode(RightButton, INPUT_PULLUP);  
   pinMode(BackButton, INPUT_PULLUP);
@@ -199,13 +191,18 @@ void setup()
   }
   //
   delay(1000);
+  CheckForFactoryReset();
+#ifdef CUSTOMMESSAGE
+    lcd.setCursor(0,1);
+    lcd.print(CUSTOMMESSAGE);
+    delay(1000);
+#endif
   StandBy=true;
   if (MakeSounds)
     Beep(1);
   lcd.setCursor(0,1);
   lcd.print("Ready!          ");    
 }
-
 
 
 
@@ -348,7 +345,7 @@ void loop()
           PrintDigits(LightThreshold,3);          
         }
         if (PreFocus)
-          PreFocusStop();                      
+          PreFocusStop();  
         StandBy=true;
         ClearScreen();
         break;
@@ -745,7 +742,6 @@ void loop()
 
 
 
-
 // --- MAIN MENU procedure ---------------------------------------------------------------------------------------------------------------------------
 // Display and move at Main Menu.
 
@@ -793,7 +789,6 @@ void MainMenu()
 
 
 
-
 // --- RETURN KEYPRESS function ----------------------------------------------------------------------------------------------------------------------
 // Check for keypress and return key.
 
@@ -833,7 +828,6 @@ byte Keypress()
 
 
 
-
 // --- PRINT DIGITS (1, 2, 3 or 4 digits) procedure --------------------------------------------------------------------------------------------------
 // Print digits using leading zeros.
 
@@ -853,13 +847,12 @@ void PrintDigits(int x, int y)
 
 
 
-
 // --- BEEP procedure --------------------------------------------------------------------------------------------------------------------------------
 // Make a beep!
 
 void Beep(byte x)
 {
-/*
+/*  
   for (int j=0; j<x; j++)
   {
     digitalWrite(BuzzerPin, HIGH);
@@ -876,10 +869,6 @@ void Beep(byte x)
     delay(BuzzerDelay);
   }
 }
-
-
-
-
 
 
 
@@ -1417,9 +1406,8 @@ void SetupMenu()
       SettingsNotSaved();
   }
   Mode=1;
-  StandBy=true;
+  StandBy=true;  
 }
-
 
 
 
@@ -1436,7 +1424,6 @@ void WriteToMem(byte address, int number)
 
 
 
-
 // --- READ FRON EEPROM procedure --------------------------------------------------------------------------------------------------------------------
 // Read numbers (0-65535) from EEPROM (using 2 bytes).
 
@@ -1447,7 +1434,6 @@ int ReadFromMem(byte address)
 
   return a*256+b;
 }
-
 
 
 
@@ -1462,7 +1448,6 @@ void PreFocusStart()
 
 
 
-
 // --- PREFOCUS STOP procedure -----------------------------------------------------------------------------------------------------------------------
 // Start by keeping the focus HIGH.
 
@@ -1471,7 +1456,6 @@ void PreFocusStop()
   if (Optocoupler1Enabled)
     digitalWrite(Optocoupler1Pin, LOW);
 }
-
 
 
 
@@ -1575,7 +1559,6 @@ void StopBulb()
 
 
 
-
 // --- BACKKEY function ------------------------------------------------------------------------------------------------------------------------------
 // For faster checking for back keypress.
 
@@ -1589,9 +1572,8 @@ boolean BackKey()
 
 
 
-
-// --- FACTORY RESET procedure -----------------------------------------------------------------------------------------------------------------------
-// Factory reset & reboot.                  
+// --- FACTORY RESET menu ----------------------------------------------------------------------------------------------------------------------------
+// Factory reset menu.                  
 
 void FactoryReset()
 {
@@ -1614,31 +1596,7 @@ void FactoryReset()
       {
         if (Keypress() == ENTERKEY)
         {
-          for (int i = 0; i < 512; i++)
-            EEPROM.write(i, 0);      
-          WriteToMem(0,1);
-          WriteToMem(2,1);
-          WriteToMem(4,0);
-          WriteToMem(6,250);
-          WriteToMem(8,250);
-          WriteToMem(10,1);
-          WriteToMem(12,1);  
-          WriteToMem(14,1);
-          WriteToMem(16,1);
-          WriteToMem(18,5);
-          WriteToMem(20,10);
-          WriteToMem(22,1);
-          WriteToMem(24,1);
-          WriteToMem(26,1);
-          WriteToMem(28,15);
-          WriteToMem(30,50);
-          WriteToMem(32,50);
-          WriteToMem(34,12);
-          lcd.setCursor(0,1);
-          lcd.print("Done!           ");
-          Beep(3);
-          delay(1000);
-          SoftReset();
+          DoFactoryReset();
         }
         if (BackKey())
         {
@@ -1658,6 +1616,41 @@ void FactoryReset()
 
 
 
+// --- FACTORY RESET procedure -----------------------------------------------------------------------------------------------------------------------
+// Perform a factory reset and reboot.                  
+
+
+void DoFactoryReset()
+{
+  for (int i = 0; i < 512; i++)
+    EEPROM.write(i, 0);      
+  WriteToMem(0,1);
+  WriteToMem(2,1);
+  WriteToMem(4,0);
+  WriteToMem(6,250);
+  WriteToMem(8,250);
+  WriteToMem(10,1);
+  WriteToMem(12,1);  
+  WriteToMem(14,1);
+  WriteToMem(16,1);
+  WriteToMem(18,5);
+  WriteToMem(20,10);
+  WriteToMem(22,1);
+  WriteToMem(24,1);
+  WriteToMem(26,1);
+  WriteToMem(28,15);
+  WriteToMem(30,50);
+  WriteToMem(32,50);
+  WriteToMem(34,12);
+  WriteToMem(36,2);
+  lcd.setCursor(0,1);
+  lcd.print("Done!           ");
+  Beep(3);
+  delay(1000);
+  SoftReset();  
+}
+
+
 
 // --- SOFTWARE RESET ARDUINO procedure --------------------------------------------------------------------------------------------------------------
 // Reset Arduino.
@@ -1666,7 +1659,6 @@ void SoftReset()
 {
   asm volatile ("  jmp 0");
 }
-
 
 
 
@@ -1685,7 +1677,6 @@ void SettingsSaved()
 
 
 
-
 // --- NOT SAVED SETTINGS MSG procedure --------------------------------------------------------------------------------------------------------------
 // Make sound and display not saved message.
 
@@ -1698,7 +1689,6 @@ void SettingsNotSaved()
     Beep(2);
   delay(500);     
 }
-
 
 
 
@@ -1743,3 +1733,21 @@ void ClearScreen()
   lcd.setCursor(0,1);
   lcd.print("Ready!          ");        
 }
+
+
+
+// --- Check for Hard Reset --------------------------------------------------------------------------------------------------------------------------
+// Check if buttons ENTER, BACK & SHOOT are pressed, and do factory reset.
+
+void CheckForFactoryReset()
+{
+  if ((digitalRead(EnterButton) == LOW) && (digitalRead(BackButton) == LOW) && (digitalRead(ShootButton) == LOW))
+  {
+    lcd.clear();
+    lcd.print("    WARNING!   ");
+    lcd.setCursor(0,1);
+    lcd.print(" FACTORY RESET ");
+    delay(500);
+    DoFactoryReset();
+  }
+}    
