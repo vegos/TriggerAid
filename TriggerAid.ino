@@ -1351,6 +1351,13 @@ void SetupMenu()
   byte tmpBuzzerDelay=BuzzerDelay;
   while (StayInside)
   {
+    if (Keypress() == SHOOTKEY)
+    {
+      tone(BuzzerPin, 440);
+      delay(tmpBuzzerDelay);
+      noTone(BuzzerPin);
+      delay(tmpBuzzerDelay);
+    }
     if (Keypress() == LEFTKEY)
     {
       tmpBuzzerDelay-=1;
